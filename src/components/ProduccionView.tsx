@@ -17,6 +17,7 @@ interface PendingItem {
   nombrePreparado: string;
   cantidad: number;
   unidad: 'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes';
+  encargado: string;
   source: 'ai' | 'manual'; // Para saber de dónde vino
 }
 
@@ -30,6 +31,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   // Estados del formulario
   const [nombrePreparado, setNombrePreparado] = useState("");
   const [cantidad, setCantidad] = useState("");
+  const [encargadoManual, setEncargadoManual] = useState("");
   const [unidad, setUnidad] = useState<'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes'>('unidades');
 
   // Control de UI
@@ -77,6 +79,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           nombrePreparado: item.nombre,
           cantidad: item.cantidad,
           unidad: item.unidad as any,
+          encargado: "", // Dejar vacío para que tome el default al guardar
           source: 'ai'
         }));
         // Agregamos los items detectados a la lista pendiente existente
@@ -102,6 +105,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       nombrePreparado,
       cantidad: parseFloat(cantidad),
       unidad,
+      encargado: encargadoManual,
       source: 'manual'
     };
 
@@ -117,6 +121,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     // Limpiar formulario para el siguiente ingreso rápido
     setNombrePreparado("");
     setCantidad("");
+    setEncargadoManual("");
     // Mantener la unidad seleccionada suele ser útil si son varios del mismo tipo
   };
 
@@ -126,6 +131,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     setNombrePreparado(item.nombrePreparado);
     setCantidad(item.cantidad.toString());
     setUnidad(item.unidad);
+    setEncargadoManual(item.encargado);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -135,6 +141,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       setEditingId(null);
       setNombrePreparado("");
       setCantidad("");
+      setEncargadoManual("");
     }
   };
 
@@ -160,7 +167,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
         cantidad: item.cantidad,
         unidad: item.unidad,
         fecha: new Date().toISOString(),
-        encargado: user?.nombre || "Sistema",
+        encargado: item.encargado || user?.nombre || "Sistema",
         status: false
       }));
 
@@ -213,10 +220,10 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               {editingId ? "✏️ Editando Item..." : "➕ Agregar Item a la Lista"}
             </div>
 
-            <div className="md:col-span-5">
+            <div className="md:col-span-4">
               <input
                 type="text"
-                placeholder="Nombre del preparado (ej. Salsa BBQ)"
+                placeholder="Nombre del preparado"
                 value={nombrePreparado}
                 onChange={e => setNombrePreparado(e.target.value)}
                 className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none"
@@ -224,7 +231,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               />
             </div>
 
-            <div className="md:col-span-4 flex gap-2">
+            <div className="md:col-span-3 flex gap-2">
               <input
                 type="number"
                 step="0.01"
@@ -247,19 +254,29 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               </select>
             </div>
 
-            <div className="md:col-span-3 flex gap-2">
+            <div className="md:col-span-3">
+              <input
+                type="text"
+                placeholder="Encargado (Opcional)"
+                value={encargadoManual}
+                onChange={e => setEncargadoManual(e.target.value)}
+                className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none"
+              />
+            </div>
+
+            <div className="md:col-span-2 flex gap-2">
               <button
                 type="submit"
                 className="flex-1 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition-colors flex justify-center items-center gap-2"
               >
                 {editingId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {editingId ? "Actualizar" : "Agregar"}
+                {editingId ? "Listo" : "Agregar"}
               </button>
 
               {editingId && (
                 <button
                   type="button"
-                  onClick={() => { setEditingId(null); setNombrePreparado(""); setCantidad(""); }}
+                  onClick={() => { setEditingId(null); setNombrePreparado(""); setCantidad(""); setEncargadoManual(""); }}
                   className="px-3 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300"
                 >
                   <X className="w-4 h-4" />
@@ -294,7 +311,10 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                       </span>
                       <div>
                         <div className="font-medium text-slate-800 text-lg">{item.nombrePreparado}</div>
-                        <div className="text-sm text-slate-500 font-mono">{item.cantidad} {item.unidad}</div>
+                        <div className="text-sm text-slate-500 font-mono">
+                          {item.cantidad} {item.unidad} 
+                          {item.encargado && <span className="ml-2 italic text-slate-400">· x {item.encargado}</span>}
+                        </div>
                       </div>
                     </div>
 
