@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { 
+import {
   Settings,
-  Plus, 
-  History, 
-  AlertTriangle, 
-  LayoutDashboard, 
-  LogOut, 
+  Plus,
+  History,
+  AlertTriangle,
+  LayoutDashboard,
+  LogOut,
   User as UserIcon,
   ChevronRight,
   ChevronLeft,
@@ -31,16 +31,16 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSupabase } from "./lib/supabase";
 import { supabaseService } from "./services/supabaseService";
-import { 
-  EstadoPieza, 
-  TipoEvento, 
-  RolUsuario, 
-  Pieza, 
-  RegistroPeso, 
-  Usuario, 
+import {
+  EstadoPieza,
+  TipoEvento,
+  RolUsuario,
+  Pieza,
+  RegistroPeso,
+  Usuario,
   Produccion,
-  ESTADO_COLORS, 
-  NEXT_STATE, 
+  ESTADO_COLORS,
+  NEXT_STATE,
   EVENT_FOR_STATE,
   GLOBAL_THRESHOLDS,
   ConfigCorte,
@@ -62,12 +62,9 @@ const CURRENT_USER: Usuario = {
 export default function App() {
   const [user, setUser] = useState<Usuario | null>(null);
   const [authSession, setAuthSession] = useState<any>(null);
-<<<<<<< HEAD
   // Stable ID derived from the session — only changes on real sign-in/sign-out,
   // NOT on every TOKEN_REFRESHED event. Used as the dependency for data fetching.
   const [authUserId, setAuthUserId] = useState<string | null>(null);
-=======
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
   const [piezas, setPiezas] = useState<Pieza[]>([]);
   const [registros, setRegistros] = useState<RegistroPeso[]>([]);
   const [configCortes, setConfigCortes] = useState<ConfigCorte[]>([]);
@@ -134,11 +131,8 @@ export default function App() {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: authSession } }) => {
       setAuthSession(authSession);
-<<<<<<< HEAD
       const uid = authSession?.user?.id ?? null;
       setAuthUserId(uid);
-=======
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       if (authSession) {
         loadUserProfile(authSession.user.id);
       } else {
@@ -146,7 +140,6 @@ export default function App() {
       }
     });
 
-<<<<<<< HEAD
     // Listen for changes.
     // TOKEN_REFRESHED is fired when the user switches tabs and comes back —
     // Supabase silently renews the JWT. We update the session object but DO NOT
@@ -168,13 +161,6 @@ export default function App() {
           if (!prev) loadUserProfile(authSession.user.id);
           return prev;
         });
-=======
-    // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
-      setAuthSession(authSession);
-      if (authSession) {
-        loadUserProfile(authSession.user.id);
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       } else {
         setUser(null);
         setIsAuthLoading(false);
@@ -202,7 +188,7 @@ export default function App() {
 
   const generateReport = () => {
     setIsGeneratingReport(true);
-    
+
     // Create a temporary iframe for printing
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -299,18 +285,12 @@ export default function App() {
     setIsGeneratingReport(false);
   };
 
-<<<<<<< HEAD
   // Fetch Data from Supabase.
   // Depends on authUserId (stable string), NOT on authSession (object).
   // This ensures TOKEN_REFRESHED events — which replace the session object
   // without changing the user — do NOT trigger an unnecessary data reload.
   useEffect(() => {
     if (!getSupabase() || !authUserId) {
-=======
-  // Fetch Data from Supabase
-  useEffect(() => {
-    if (!getSupabase() || !authSession) {
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       setIsLoading(false);
       return;
     }
@@ -332,16 +312,12 @@ export default function App() {
       }
     };
     loadData();
-<<<<<<< HEAD
   }, [authUserId]);
-=======
-  }, [authSession]);
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
 
   // Business Logic: Calculations
   const calculateMetrics = (pieza: Pieza, newPeso: number, type: TipoEvento) => {
     let { pesoCongelado, pesoDescongelado, pesoProducido } = pieza;
-    
+
     if (type === TipoEvento.CONGELADO) pesoCongelado = newPeso;
     if (type === TipoEvento.DESCONGELADO) pesoDescongelado = newPeso;
     if (type === TipoEvento.PRODUCIDO) pesoProducido = newPeso;
@@ -376,9 +352,9 @@ export default function App() {
         merma = (diff / pesoCongelado) * 100;
       }
     }
-      
-    const rendimiento = pesoDescongelado > 0 && pesoProducido > 0 
-      ? (pesoProducido / pesoDescongelado) * 100 
+
+    const rendimiento = pesoDescongelado > 0 && pesoProducido > 0
+      ? (pesoProducido / pesoDescongelado) * 100
       : 0;
 
     return { pesoCongelado, pesoDescongelado, pesoProducido, mermaDescongelado, mermaTotal, merma, rendimiento };
@@ -400,7 +376,7 @@ export default function App() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     try {
       await supabaseService.createPieza(newPiece);
       setPiezas([newPiece, ...piezas]);
@@ -458,12 +434,12 @@ export default function App() {
     }
 
     const metrics = calculateMetrics(piece, peso, eventType);
-    
+
     try {
       // 1. Upload photos to Supabase Storage
       const fileName = `${piece.id}-${eventType}-${Date.now()}`;
       const publicUrl = await supabaseService.uploadImage(foto, fileName);
-      
+
       let publicUrlMerma = undefined;
       if (fotoMerma) {
         const fileNameMerma = `${piece.id}-MERMA-${Date.now()}`;
@@ -484,18 +460,18 @@ export default function App() {
         fecha: new Date().toISOString(),
       };
 
-      const updatedPiece: Pieza = { 
-        ...piece, 
-        ...metrics, 
+      const updatedPiece: Pieza = {
+        ...piece,
+        ...metrics,
         estado: nextEstado,
         fotoMerma: publicUrlMerma || piece.fotoMerma,
-        porciones: porciones || piece.porciones 
+        porciones: porciones || piece.porciones
       };
       await Promise.all([
         supabaseService.createRegistro(newRegistro),
         supabaseService.updatePieza(updatedPiece)
       ]);
-      
+
       setRegistros([newRegistro, ...registros]);
       setPiezas(piezas.map(p => p.id === pieceId ? updatedPiece : p));
       setRegistrationModal({ open: false, piece: null });
@@ -511,9 +487,9 @@ export default function App() {
       const config = configCortes.find(c => c.nombre === p.tipo);
       const mDescongMax = config?.mermaDescongeladoMax ?? 8;
       const mTotalMax = config?.mermaTotalMax ?? 22;
-      return (p.mermaDescongelado > mDescongMax) || 
-             (p.mermaTotal > mTotalMax) || 
-             (p.rendimiento > 0 && p.rendimiento < GLOBAL_THRESHOLDS.RENDIMIENTO_MIN);
+      return (p.mermaDescongelado > mDescongMax) ||
+        (p.mermaTotal > mTotalMax) ||
+        (p.rendimiento > 0 && p.rendimiento < GLOBAL_THRESHOLDS.RENDIMIENTO_MIN);
     });
   }, [piezas, configCortes]);
 
@@ -538,7 +514,7 @@ export default function App() {
       if (!groups[r.piezaId]) groups[r.piezaId] = [];
       groups[r.piezaId].push(r);
     });
-    
+
     return Object.entries(groups)
       .map(([piezaId, regs]) => {
         const piece = piezas.find(p => p.id === piezaId);
@@ -567,38 +543,38 @@ export default function App() {
         <div className="hidden md:flex mb-8">
           <Beef className="w-8 h-8 text-brand" />
         </div>
-        <NavButton 
-          active={activeTab === "dashboard"} 
-          onClick={() => setActiveTab("dashboard")} 
-          icon={<LayoutDashboard />} 
-          label="Dashboard" 
+        <NavButton
+          active={activeTab === "dashboard"}
+          onClick={() => setActiveTab("dashboard")}
+          icon={<LayoutDashboard />}
+          label="Dashboard"
         />
-        <NavButton 
-          active={activeTab === "transferencias"} 
-          onClick={() => setActiveTab("transferencias")} 
-          icon={<ArrowRightLeft />} 
-          label="Transferencias" 
+        <NavButton
+          active={activeTab === "transferencias"}
+          onClick={() => setActiveTab("transferencias")}
+          icon={<ArrowRightLeft />}
+          label="Transferencias"
         />
-        <NavButton 
-          active={activeTab === "produccion"} 
-          onClick={() => setActiveTab("produccion")} 
-          icon={<ChefHat />} 
-          label="Producción" 
+        <NavButton
+          active={activeTab === "produccion"}
+          onClick={() => setActiveTab("produccion")}
+          icon={<ChefHat />}
+          label="Producción"
         />
         {user?.rol !== RolUsuario.COCINA && (
-          <NavButton 
-            active={activeTab === "audit"} 
-            onClick={() => setActiveTab("audit")} 
-            icon={<History />} 
-            label="Auditoría" 
+          <NavButton
+            active={activeTab === "audit"}
+            onClick={() => setActiveTab("audit")}
+            icon={<History />}
+            label="Auditoría"
           />
         )}
         {user?.rol === RolUsuario.ADMIN && (
-          <NavButton 
-            active={activeTab === "settings"} 
-            onClick={() => setActiveTab("settings")} 
-            icon={<Settings />} 
-            label="Ajustes" 
+          <NavButton
+            active={activeTab === "settings"}
+            onClick={() => setActiveTab("settings")}
+            icon={<Settings />}
+            label="Ajustes"
           />
         )}
         <div className="mt-auto hidden md:block">
@@ -649,428 +625,428 @@ export default function App() {
         ) : (
           <>
             <header className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-              {activeTab === "dashboard" && "Panel de Control"}
-              {activeTab === "transferencias" && "Transferencias de Almacén"}
-              {activeTab === "audit" && "Historial de Pesos"}
-              {activeTab === "settings" && "Configuración de Cortes"}
-            </h1>
-            <p className="text-slate-500 text-sm">
-              {format(new Date(), "EEEE, d 'de' MMMM", { locale: es })}
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            {activeTab === "dashboard" && (
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={generateReport}
-                  disabled={isGeneratingReport || filteredPiezas.length === 0}
-                  className="bg-white text-slate-900 border border-slate-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  <Printer className="w-5 h-5" />
-                  <span className="hidden sm:inline">Reporte</span>
-                </button>
-                <button 
-                  onClick={() => setIsAddingPiece(true)}
-                  className="bg-black text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span className="hidden sm:inline">Nueva Pieza</span>
-                </button>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                  {activeTab === "dashboard" && "Control Panel"}
+                  {activeTab === "transferencias" && "Transferencias de Almacén"}
+                  {activeTab === "audit" && "Historial de Pesos"}
+                  {activeTab === "settings" && "Configuración de Cortes"}
+                </h1>
+                <p className="text-slate-500 text-sm">
+                  {format(new Date(), "EEEE, d 'de' MMMM", { locale: es })}
+                </p>
               </div>
-            )}
-            {activeTab === "transferencias" && (
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => document.dispatchEvent(new Event('open-nueva-transferencia'))}
-                  className="bg-black text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span className="hidden sm:inline">Nueva Transferencia</span>
-                </button>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold">{user?.nombre}</p>
-                <p className="text-xs text-slate-500">{user?.rol}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
-                <UserIcon className="w-6 h-6" />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {activeTab === "dashboard" && (
-          <div className="space-y-6">
-            {/* Filters Section */}
-            <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 text-slate-900 font-bold">
-                <Filter className="w-5 h-5" />
-                <h2>Filtros</h2>
-                {(filterStartDate || filterEndDate || filterType || filterStatus) && (
-                  <button 
-                    onClick={() => { setFilterStartDate(""); setFilterEndDate(""); setFilterType(""); setFilterStatus(""); }}
-                    className="ml-auto text-xs text-brand hover:underline flex items-center gap-1"
-                  >
-                    <X className="w-3 h-3" /> Limpiar
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Inicio</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input 
-                      type="date" 
-                      value={filterStartDate}
-                      onChange={(e) => setFilterStartDate(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Fin</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input 
-                      type="date" 
-                      value={filterEndDate}
-                      onChange={(e) => setFilterEndDate(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Tipo de Pieza</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ej: Picaña, Rib Eye..."
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">Estado</label>
-                  <select 
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value as EstadoPieza)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all appearance-none"
-                  >
-                    <option value="">Todos los estados</option>
-                    {Object.values(EstadoPieza).map(status => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            {/* Stats Overview */}
-            {user?.rol !== RolUsuario.COCINA && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <StatCard 
-                  title="Piezas Filtradas" 
-                  value={filteredPiezas.length} 
-                  icon={<Beef className="text-blue-600" />}
-                  color="blue"
-                />
-                <StatCard 
-                  title="Alertas Críticas" 
-                  value={filteredAlerts.length} 
-                  icon={<AlertTriangle className="text-brand" />}
-                  color="brand"
-                />
-                <StatCard 
-                  title="Rendimiento Promedio" 
-                  value={`${(filteredPiezas.reduce((acc, p) => acc + p.rendimiento, 0) / (filteredPiezas.filter(p => p.rendimiento > 0).length || 1)).toFixed(1)}%`} 
-                  icon={<TrendingUp className="text-green-600" />}
-                  color="green"
-                />
-              </div>
-            )}
-
-            {/* Weekly Production Summary */}
-            {user?.rol !== RolUsuario.COCINA && (
-              <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="flex flex-col gap-4 mb-4">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-bold flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-green-600" /> Producción
-                    </h2>
-                    <select 
-                      value={prodFilterType}
-                      onChange={(e) => setProdFilterType(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
+              <div className="flex items-center gap-4">
+                {activeTab === "dashboard" && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={generateReport}
+                      disabled={isGeneratingReport || filteredPiezas.length === 0}
+                      className="bg-white text-slate-900 border border-slate-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
                     >
-                      <option value="">Todos los cortes</option>
-                      {configCortes.map(c => (
-                        <option key={c.id} value={c.nombre}>{c.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex gap-2 items-center">
-                    <input 
-                      type="date" 
-                      value={prodStartDate}
-                      onChange={(e) => setProdStartDate(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
-                    />
-                    <span className="text-slate-400">a</span>
-                    <input 
-                      type="date" 
-                      value={prodEndDate}
-                      onChange={(e) => setProdEndDate(e.target.value)}
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {Object.entries(
-                    registros
-                      .filter(r => {
-                        const fecha = r.fecha.split('T')[0];
-                        return r.tipoEvento === TipoEvento.PRODUCIDO && fecha >= prodStartDate && fecha <= prodEndDate;
-                      })
-                      .reduce((acc: Record<string, number>, r) => {
-                        const pieza = piezas.find(p => p.id === r.piezaId);
-                        if (pieza && (prodFilterType === "" || pieza.tipo === prodFilterType)) {
-                          acc[pieza.tipo] = (acc[pieza.tipo] || 0) + r.peso;
-                        }
-                        return acc;
-                      }, {})
-                  ).map(([tipo, kg]) => (
-                    <div key={tipo} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <p className="text-xs font-bold text-slate-400 uppercase">{tipo}</p>
-                      <p className="text-xl font-bold text-slate-900">{kg.toFixed(1)} kg</p>
-                    </div>
-                  ))}
-                  {Object.keys(
-                    registros
-                      .filter(r => {
-                        const fecha = r.fecha.split('T')[0];
-                        return r.tipoEvento === TipoEvento.PRODUCIDO && fecha >= prodStartDate && fecha <= prodEndDate;
-                      })
-                      .reduce((acc: Record<string, number>, r) => {
-                        const pieza = piezas.find(p => p.id === r.piezaId);
-                        if (pieza && (prodFilterType === "" || pieza.tipo === prodFilterType)) {
-                          acc[pieza.tipo] = (acc[pieza.tipo] || 0) + r.peso;
-                        }
-                        return acc;
-                      }, {})
-                  ).length === 0 && (
-                    <p className="text-slate-500 italic text-sm col-span-full">No hay producción registrada en el rango seleccionado.</p>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* Alerts Panel */}
-            {user?.rol !== RolUsuario.COCINA && filteredAlerts.length > 0 && (
-              <section className="bg-brand/10 border border-brand/20 rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4 text-brand font-bold">
-                  <AlertTriangle className="w-5 h-5" />
-                  <h2>Alertas (Filtradas)</h2>
-                </div>
-                <div className="space-y-3">
-                  {paginatedAlerts.map(p => (
-                    <div key={p.id} className="bg-white p-4 rounded-xl border border-brand/20 flex justify-between items-center">
-                      <div>
-                        <p className="font-bold text-slate-900">{p.tipo} <span className="text-xs font-normal text-slate-500 ml-2">{p.id}</span></p>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                          {(() => {
-                            const config = configCortes.find(c => c.nombre === p.tipo);
-                            return (
-                              <>
-                                {p.mermaDescongelado > (config?.mermaDescongeladoMax ?? 8) && (
-                                  <span className="text-xs font-medium text-brand flex items-center gap-1">
-                                    <TrendingDown className="w-3 h-3" /> Merma Descong: {p.mermaDescongelado.toFixed(1)}%
-                                  </span>
-                                )}
-                                {p.mermaTotal > (config?.mermaTotalMax ?? 22) && (
-                                  <span className="text-xs font-medium text-brand flex items-center gap-1">
-                                    <TrendingDown className="w-3 h-3" /> Merma Total: {p.mermaTotal.toFixed(1)}%
-                                  </span>
-                                )}
-                                {p.rendimiento > 0 && p.rendimiento < GLOBAL_THRESHOLDS.RENDIMIENTO_MIN && (
-                                  <span className="text-xs font-medium text-brand flex items-center gap-1">
-                                    <TrendingDown className="w-3 h-3" /> Rendimiento Bajo: {p.rendimiento.toFixed(1)}%
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => setAuditModal({ open: true, piece: p })}
-                          className="px-3 py-1.5 bg-brand text-white text-xs font-bold rounded-lg hover:bg-brand/90 transition-colors"
-                        >
-                          Auditada
-                        </button>
-                        <button 
-                          onClick={() => setDetailsModal({ open: true, piece: p })}
-                          className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-                        >
-                          <ChevronRight className="w-5 h-5 text-slate-400" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Pagination 
-                  currentPage={alertsPage} 
-                  totalItems={filteredAlerts.length} 
-                  itemsPerPage={ITEMS_PER_PAGE} 
-                  onPageChange={setAlertsPage} 
-                />
-              </section>
-            )}
-
-            {/* Active Pieces List */}
-            <section>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold text-lg">Piezas en Proceso (Filtradas)</h2>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {paginatedPiezas.map(p => (
-                  <PieceCard 
-                    key={p.id} 
-                    pieza={p} 
-                    configCortes={configCortes}
-                    onAction={() => setRegistrationModal({ open: true, piece: p })}
-                    onDetails={() => setDetailsModal({ open: true, piece: p })}
-                  />
-                ))}
-                {filteredPiezas.length === 0 && (
-                  <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
-                    <p className="text-slate-400 italic">No se encontraron piezas con los filtros aplicados.</p>
+                      <Printer className="w-5 h-5" />
+                      <span className="hidden sm:inline">Reporte</span>
+                    </button>
+                    <button
+                      onClick={() => setIsAddingPiece(true)}
+                      className="bg-black text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span className="hidden sm:inline">Nueva Pieza</span>
+                    </button>
                   </div>
                 )}
+                {activeTab === "transferencias" && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => document.dispatchEvent(new Event('open-nueva-transferencia'))}
+                      className="bg-black text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span className="hidden sm:inline">Nueva Transferencia</span>
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-semibold">{user?.nombre}</p>
+                    <p className="text-xs text-slate-500">{user?.rol}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-brand/10 flex items-center justify-center text-brand">
+                    <UserIcon className="w-6 h-6" />
+                  </div>
+                </div>
               </div>
-              <Pagination 
-                currentPage={piecesPage} 
-                totalItems={filteredPiezas.length} 
-                itemsPerPage={ITEMS_PER_PAGE} 
-                onPageChange={setPiecesPage} 
-              />
-            </section>
-          </div>
-        )}
+            </header>
 
-        {activeTab === "audit" && user?.rol !== RolUsuario.COCINA && (
-          <div className="space-y-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold">Historial de Pesos</h2>
-              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  checked={showAuditedOnly} 
-                  onChange={(e) => setShowAuditedOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-brand focus:ring-brand"
-                />
-                Solo auditadas
-              </label>
-            </div>
-            {groupedAudit.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
-                <History className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">No hay registros de peso todavía.</p>
-              </div>
-            ) : (
-              <>
-                {paginatedAudit.map(group => (
-                  <div key={group.piezaId} className="space-y-3">
-                    <div className="flex items-center justify-between px-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center">
-                          <Beef className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-slate-900 leading-none">{group.tipo}</h3>
-                          <p className="text-[10px] text-slate-400 font-mono mt-1">{group.piezaId}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        {group.auditado && (
-                          <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">
-                            Auditada
-                          </span>
-                        )}
-                        <button 
-                          onClick={() => setDetailsModal({ open: true, piece: piezas.find(p => p.id === group.piezaId) || null })}
-                          className="text-xs font-bold text-blue-600 hover:underline"
-                        >
-                          Ver Trazabilidad
-                        </button>
+            {activeTab === "dashboard" && (
+              <div className="space-y-6">
+                {/* Filters Section */}
+                <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4 text-slate-900 font-bold">
+                    <Filter className="w-5 h-5" />
+                    <h2>Filtros</h2>
+                    {(filterStartDate || filterEndDate || filterType || filterStatus) && (
+                      <button
+                        onClick={() => { setFilterStartDate(""); setFilterEndDate(""); setFilterType(""); setFilterStatus(""); }}
+                        className="ml-auto text-xs text-brand hover:underline flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" /> Limpiar
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Inicio</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="date"
+                          value={filterStartDate}
+                          onChange={(e) => setFilterStartDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
+                        />
                       </div>
                     </div>
-                    
-                    {group.auditado && group.comentarioAuditoria && (
-                      <div className="px-2 text-xs text-slate-500 italic">
-                        Comentario: {group.comentarioAuditoria}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Fecha Fin</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(e) => setFilterEndDate(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Tipo de Pieza</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Picaña, Rib Eye..."
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Estado</label>
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value as EstadoPieza)}
+                        className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand outline-none transition-all appearance-none"
+                      >
+                        <option value="">Todos los estados</option>
+                        {Object.values(EstadoPieza).map(status => (
+                          <option key={status} value={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Stats Overview */}
+                {user?.rol !== RolUsuario.COCINA && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <StatCard
+                      title="Piezas Filtradas"
+                      value={filteredPiezas.length}
+                      icon={<Beef className="text-blue-600" />}
+                      color="blue"
+                    />
+                    <StatCard
+                      title="Alertas Críticas"
+                      value={filteredAlerts.length}
+                      icon={<AlertTriangle className="text-brand" />}
+                      color="brand"
+                    />
+                    <StatCard
+                      title="Rendimiento Promedio"
+                      value={`${(filteredPiezas.reduce((acc, p) => acc + p.rendimiento, 0) / (filteredPiezas.filter(p => p.rendimiento > 0).length || 1)).toFixed(1)}%`}
+                      icon={<TrendingUp className="text-green-600" />}
+                      color="green"
+                    />
+                  </div>
+                )}
+
+                {/* Weekly Production Summary */}
+                {user?.rol !== RolUsuario.COCINA && (
+                  <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <div className="flex flex-col gap-4 mb-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-green-600" /> Producción
+                        </h2>
+                        <select
+                          value={prodFilterType}
+                          onChange={(e) => setProdFilterType(e.target.value)}
+                          className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
+                        >
+                          <option value="">Todos los cortes</option>
+                          {configCortes.map(c => (
+                            <option key={c.id} value={c.nombre}>{c.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          type="date"
+                          value={prodStartDate}
+                          onChange={(e) => setProdStartDate(e.target.value)}
+                          className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
+                        />
+                        <span className="text-slate-400">a</span>
+                        <input
+                          type="date"
+                          value={prodEndDate}
+                          onChange={(e) => setProdEndDate(e.target.value)}
+                          className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-brand"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {Object.entries(
+                        registros
+                          .filter(r => {
+                            const fecha = r.fecha.split('T')[0];
+                            return r.tipoEvento === TipoEvento.PRODUCIDO && fecha >= prodStartDate && fecha <= prodEndDate;
+                          })
+                          .reduce((acc: Record<string, number>, r) => {
+                            const pieza = piezas.find(p => p.id === r.piezaId);
+                            if (pieza && (prodFilterType === "" || pieza.tipo === prodFilterType)) {
+                              acc[pieza.tipo] = (acc[pieza.tipo] || 0) + r.peso;
+                            }
+                            return acc;
+                          }, {})
+                      ).map(([tipo, kg]) => (
+                        <div key={tipo} className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                          <p className="text-xs font-bold text-slate-400 uppercase">{tipo}</p>
+                          <p className="text-xl font-bold text-slate-900">{kg.toFixed(1)} kg</p>
+                        </div>
+                      ))}
+                      {Object.keys(
+                        registros
+                          .filter(r => {
+                            const fecha = r.fecha.split('T')[0];
+                            return r.tipoEvento === TipoEvento.PRODUCIDO && fecha >= prodStartDate && fecha <= prodEndDate;
+                          })
+                          .reduce((acc: Record<string, number>, r) => {
+                            const pieza = piezas.find(p => p.id === r.piezaId);
+                            if (pieza && (prodFilterType === "" || pieza.tipo === prodFilterType)) {
+                              acc[pieza.tipo] = (acc[pieza.tipo] || 0) + r.peso;
+                            }
+                            return acc;
+                          }, {})
+                      ).length === 0 && (
+                          <p className="text-slate-500 italic text-sm col-span-full">No hay producción registrada en el rango seleccionado.</p>
+                        )}
+                    </div>
+                  </section>
+                )}
+
+                {/* Alerts Panel */}
+                {user?.rol !== RolUsuario.COCINA && filteredAlerts.length > 0 && (
+                  <section className="bg-brand/10 border border-brand/20 rounded-2xl p-6">
+                    <div className="flex items-center gap-2 mb-4 text-brand font-bold">
+                      <AlertTriangle className="w-5 h-5" />
+                      <h2>Alertas (Filtradas)</h2>
+                    </div>
+                    <div className="space-y-3">
+                      {paginatedAlerts.map(p => (
+                        <div key={p.id} className="bg-white p-4 rounded-xl border border-brand/20 flex justify-between items-center">
+                          <div>
+                            <p className="font-bold text-slate-900">{p.tipo} <span className="text-xs font-normal text-slate-500 ml-2">{p.id}</span></p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                              {(() => {
+                                const config = configCortes.find(c => c.nombre === p.tipo);
+                                return (
+                                  <>
+                                    {p.mermaDescongelado > (config?.mermaDescongeladoMax ?? 8) && (
+                                      <span className="text-xs font-medium text-brand flex items-center gap-1">
+                                        <TrendingDown className="w-3 h-3" /> Merma Descong: {p.mermaDescongelado.toFixed(1)}%
+                                      </span>
+                                    )}
+                                    {p.mermaTotal > (config?.mermaTotalMax ?? 22) && (
+                                      <span className="text-xs font-medium text-brand flex items-center gap-1">
+                                        <TrendingDown className="w-3 h-3" /> Merma Total: {p.mermaTotal.toFixed(1)}%
+                                      </span>
+                                    )}
+                                    {p.rendimiento > 0 && p.rendimiento < GLOBAL_THRESHOLDS.RENDIMIENTO_MIN && (
+                                      <span className="text-xs font-medium text-brand flex items-center gap-1">
+                                        <TrendingDown className="w-3 h-3" /> Rendimiento Bajo: {p.rendimiento.toFixed(1)}%
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setAuditModal({ open: true, piece: p })}
+                              className="px-3 py-1.5 bg-brand text-white text-xs font-bold rounded-lg hover:bg-brand/90 transition-colors"
+                            >
+                              Auditada
+                            </button>
+                            <button
+                              onClick={() => setDetailsModal({ open: true, piece: p })}
+                              className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                            >
+                              <ChevronRight className="w-5 h-5 text-slate-400" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Pagination
+                      currentPage={alertsPage}
+                      totalItems={filteredAlerts.length}
+                      itemsPerPage={ITEMS_PER_PAGE}
+                      onPageChange={setAlertsPage}
+                    />
+                  </section>
+                )}
+
+                {/* Active Pieces List */}
+                <section>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold text-lg">Piezas en Proceso (Filtradas)</h2>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {paginatedPiezas.map(p => (
+                      <PieceCard
+                        key={p.id}
+                        pieza={p}
+                        configCortes={configCortes}
+                        onAction={() => setRegistrationModal({ open: true, piece: p })}
+                        onDetails={() => setDetailsModal({ open: true, piece: p })}
+                      />
+                    ))}
+                    {filteredPiezas.length === 0 && (
+                      <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
+                        <p className="text-slate-400 italic">No se encontraron piezas con los filtros aplicados.</p>
                       </div>
                     )}
-                    
-                    <div className="space-y-2">
-                      {group.regs.map(r => (
-                        <div key={r.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 hover:border-slate-300 transition-colors">
-                          <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
-                            <img src={r.foto} alt="Peso" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                  <Pagination
+                    currentPage={piecesPage}
+                    totalItems={filteredPiezas.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    onPageChange={setPiecesPage}
+                  />
+                </section>
+              </div>
+            )}
+
+            {activeTab === "audit" && user?.rol !== RolUsuario.COCINA && (
+              <div className="space-y-8">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold">Historial de Pesos</h2>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showAuditedOnly}
+                      onChange={(e) => setShowAuditedOnly(e.target.checked)}
+                      className="rounded border-slate-300 text-brand focus:ring-brand"
+                    />
+                    Solo auditadas
+                  </label>
+                </div>
+                {groupedAudit.length === 0 ? (
+                  <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
+                    <History className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                    <p className="text-slate-500">No hay registros de peso todavía.</p>
+                  </div>
+                ) : (
+                  <>
+                    {paginatedAudit.map(group => (
+                      <div key={group.piezaId} className="space-y-3">
+                        <div className="flex items-center justify-between px-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center">
+                              <Beef className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-slate-900 leading-none">{group.tipo}</h3>
+                              <p className="text-[10px] text-slate-400 font-mono mt-1">{group.piezaId}</p>
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-bold text-slate-900 text-sm truncate">{r.tipoEvento}</h4>
-                              <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
-                                {format(new Date(r.fecha), "HH:mm, d MMM", { locale: es })}
+                          <div className="flex items-center gap-4">
+                            {group.auditado && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-bold">
+                                Auditada
                               </span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-base font-bold text-slate-900">{r.peso} kg</span>
-                              {r.validadoIA ? (
-                                <span className="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                                  <CheckCircle2 className="w-2.5 h-2.5" /> IA OK
-                                </span>
-                              ) : (
-                                <span className="text-[9px] bg-brand/10 text-brand px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
-                                  <AlertTriangle className="w-2.5 h-2.5" /> IA ERROR
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right hidden sm:block">
-                            <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Operador</p>
-                            <p className="text-[11px] font-bold text-slate-700">{r.usuario}</p>
+                            )}
+                            <button
+                              onClick={() => setDetailsModal({ open: true, piece: piezas.find(p => p.id === group.piezaId) || null })}
+                              className="text-xs font-bold text-blue-600 hover:underline"
+                            >
+                              Ver Trazabilidad
+                            </button>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <Pagination 
-                  currentPage={auditPage} 
-                  totalItems={groupedAudit.length} 
-                  itemsPerPage={AUDIT_ITEMS_PER_PAGE} 
-                  onPageChange={setAuditPage} 
-                />
-              </>
+
+                        {group.auditado && group.comentarioAuditoria && (
+                          <div className="px-2 text-xs text-slate-500 italic">
+                            Comentario: {group.comentarioAuditoria}
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          {group.regs.map(r => (
+                            <div key={r.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 hover:border-slate-300 transition-colors">
+                              <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
+                                <img src={r.foto} alt="Peso" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                  <h4 className="font-bold text-slate-900 text-sm truncate">{r.tipoEvento}</h4>
+                                  <span className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
+                                    {format(new Date(r.fecha), "HH:mm, d MMM", { locale: es })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-base font-bold text-slate-900">{r.peso} kg</span>
+                                  {r.validadoIA ? (
+                                    <span className="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                                      <CheckCircle2 className="w-2.5 h-2.5" /> IA OK
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] bg-brand/10 text-brand px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5">
+                                      <AlertTriangle className="w-2.5 h-2.5" /> IA ERROR
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right hidden sm:block">
+                                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Operador</p>
+                                <p className="text-[11px] font-bold text-slate-700">{r.usuario}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <Pagination
+                      currentPage={auditPage}
+                      totalItems={groupedAudit.length}
+                      itemsPerPage={AUDIT_ITEMS_PER_PAGE}
+                      onPageChange={setAuditPage}
+                    />
+                  </>
+                )}
+              </div>
             )}
-          </div>
-        )}
-        {activeTab === "settings" && user?.rol === RolUsuario.ADMIN && (
-          <SettingsView configCortes={configCortes} setConfigCortes={setConfigCortes} authSession={authSession} />
-        )}
-        {activeTab === "transferencias" && (
-          <TransferenciasView user={user} />
-        )}
-        {activeTab === "produccion" && (
-          <ProduccionView user={user} />
-        )}
+            {activeTab === "settings" && user?.rol === RolUsuario.ADMIN && (
+              <SettingsView configCortes={configCortes} setConfigCortes={setConfigCortes} authSession={authSession} />
+            )}
+            {activeTab === "transferencias" && (
+              <TransferenciasView user={user} />
+            )}
+            {activeTab === "produccion" && (
+              <ProduccionView user={user} />
+            )}
           </>
         )}
       </main>
@@ -1084,27 +1060,27 @@ export default function App() {
         )}
 
         {registrationModal.open && registrationModal.piece && (
-          <Modal 
-            title={`Registrar ${NEXT_STATE[registrationModal.piece.estado]}`} 
+          <Modal
+            title={`Registrar ${NEXT_STATE[registrationModal.piece.estado]}`}
             onClose={() => setRegistrationModal({ open: false, piece: null })}
           >
-            <RegistrationForm 
-              pieza={registrationModal.piece} 
+            <RegistrationForm
+              pieza={registrationModal.piece}
               isAdmin={user?.rol === RolUsuario.ADMIN}
-              onSubmit={registerWeight} 
-              onCancel={() => setRegistrationModal({ open: false, piece: null })} 
+              onSubmit={registerWeight}
+              onCancel={() => setRegistrationModal({ open: false, piece: null })}
             />
           </Modal>
         )}
 
         {detailsModal.open && detailsModal.piece && (
-          <Modal 
-            title={`Detalles de Trazabilidad: ${detailsModal.piece.tipo}`} 
+          <Modal
+            title={`Detalles de Trazabilidad: ${detailsModal.piece.tipo}`}
             onClose={() => setDetailsModal({ open: false, piece: null })}
           >
-            <PieceDetails 
-              pieza={detailsModal.piece} 
-              registros={registros.filter(r => r.piezaId === detailsModal.piece?.id)} 
+            <PieceDetails
+              pieza={detailsModal.piece}
+              registros={registros.filter(r => r.piezaId === detailsModal.piece?.id)}
               configCortes={configCortes}
             />
           </Modal>
@@ -1113,7 +1089,7 @@ export default function App() {
           <Modal title="Auditar Alerta" onClose={() => setAuditModal({ open: false, piece: null })}>
             <div className="space-y-4">
               <p className="text-sm text-slate-500">¿Estás seguro de marcar esta alerta como auditada?</p>
-              <textarea 
+              <textarea
                 value={auditComment}
                 onChange={(e) => setAuditComment(e.target.value)}
                 placeholder="Comentario de auditoría..."
@@ -1143,7 +1119,7 @@ function LoginView() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    
+
     const supabase = getSupabase();
     if (!supabase) return;
 
@@ -1160,7 +1136,7 @@ function LoginView() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50"
@@ -1170,7 +1146,7 @@ function LoginView() {
             <Beef className="text-white w-8 h-8" />
           </div>
         </div>
-        
+
         <div className="text-center mb-8">
           <h2 className="text-2xl font-black text-slate-900">Iniciar Sesión</h2>
           <p className="text-slate-500 font-medium">Accede al sistema de control de mermas</p>
@@ -1179,8 +1155,8 @@ function LoginView() {
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Correo Electrónico</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -1188,11 +1164,11 @@ function LoginView() {
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-brand transition-all"
             />
           </div>
-          
+
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Contraseña</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -1208,7 +1184,7 @@ function LoginView() {
             </div>
           )}
 
-          <button 
+          <button
             type="submit"
             disabled={isLoading}
             className="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3 shadow-lg shadow-slate-200"
@@ -1230,7 +1206,7 @@ function LoginView() {
 
 function NavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300",
@@ -1273,7 +1249,7 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
   };
 
   return (
-    <button 
+    <button
       onClick={handleShare}
       className="p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-xl transition-colors"
       title="Compartir"
@@ -1283,86 +1259,86 @@ function ShareButton({ title, text, imageUrl }: { title: string; text: string; i
   );
 }
 
-  function StorageUsage({ authSession }: { authSession: any }) {
-    const [usage, setUsage] = useState<{ usedGB: number; totalGB: number; bucketName: string } | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+function StorageUsage({ authSession }: { authSession: any }) {
+  const [usage, setUsage] = useState<{ usedGB: number; totalGB: number; bucketName: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-      const fetchUsage = async () => {
-        if (!authSession) return;
-        try {
-          setLoading(true);
-          const supabase = getSupabase();
-          if (!supabase) throw new Error('Supabase no configurado');
+  useEffect(() => {
+    const fetchUsage = async () => {
+      if (!authSession) return;
+      try {
+        setLoading(true);
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase no configurado');
 
-          // Intentamos usar el SDK oficial
-          const { data, error: funcError } = await supabase.functions.invoke('get-storage-usage', {
-            body: { bucketName: 'evidencias' },
-            headers: {
-              'Authorization': `Bearer ${authSession.access_token}`
-            }
-          });
-          
-          if (funcError) {
-            // Si falla el SDK, intentamos un fetch manual como fallback o lanzamos el error detallado
-            console.error('Error en Edge Function:', funcError);
-            throw new Error(funcError.message || 'Error al obtener uso de almacenamiento');
+        // Intentamos usar el SDK oficial
+        const { data, error: funcError } = await supabase.functions.invoke('get-storage-usage', {
+          body: { bucketName: 'evidencias' },
+          headers: {
+            'Authorization': `Bearer ${authSession.access_token}`
           }
-          
-          if (!data) throw new Error('No se recibieron datos de la función');
+        });
 
-          setUsage({ 
-            usedGB: parseFloat(data.usedGB || 0), 
-            totalGB: 50, // Límite estimado
-            bucketName: data.bucketName || 'evidencias'
-          });
-        } catch (err: any) {
-          console.error('Error detallado:', err);
-          
-          // Mensaje más descriptivo para el usuario
-          let friendlyMessage = 'No se pudo cargar el uso de almacenamiento';
-          if (err.message?.includes('Failed to send a request')) {
-            friendlyMessage = 'Error de conexión con la Edge Function. Verifique la configuración de CORS y JWT en el Dashboard de Supabase.';
-          } else if (err.message) {
-            friendlyMessage = err.message;
-          }
-          
-          setError(friendlyMessage);
-        } finally {
-          setLoading(false);
+        if (funcError) {
+          // Si falla el SDK, intentamos un fetch manual como fallback o lanzamos el error detallado
+          console.error('Error en Edge Function:', funcError);
+          throw new Error(funcError.message || 'Error al obtener uso de almacenamiento');
         }
-      };
 
-      fetchUsage();
-    }, [authSession]);
+        if (!data) throw new Error('No se recibieron datos de la función');
 
-    if (loading) return <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center text-slate-400">Cargando...</div>;
-    if (error) return <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center text-red-500">{error}</div>;
-    if (!usage) return null;
+        setUsage({
+          usedGB: parseFloat(data.usedGB || 0),
+          totalGB: 50, // Límite estimado
+          bucketName: data.bucketName || 'evidencias'
+        });
+      } catch (err: any) {
+        console.error('Error detallado:', err);
 
-    const percentage = (usage.usedGB / usage.totalGB) * 100;
+        // Mensaje más descriptivo para el usuario
+        let friendlyMessage = 'No se pudo cargar el uso de almacenamiento';
+        if (err.message?.includes('Failed to send a request')) {
+          friendlyMessage = 'Error de conexión con la Edge Function. Verifique la configuración de CORS y JWT en el Dashboard de Supabase.';
+        } else if (err.message) {
+          friendlyMessage = err.message;
+        }
 
-    return (
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <h3 className="font-bold text-slate-900 flex items-center gap-2">
-          <LayoutDashboard className="w-5 h-5 text-slate-400" /> Almacenamiento (Storage)
-        </h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-slate-500">Bucket: <span className="font-bold text-slate-900">{usage.bucketName}</span></span>
-            <span className="font-bold text-brand">{usage.usedGB.toFixed(2)} GB / {usage.totalGB} GB</span>
-          </div>
-          <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-            <div 
-              className="bg-brand h-full rounded-full transition-all duration-500" 
-              style={{ width: `${Math.min(percentage, 100)}%` }}
-            />
-          </div>
+        setError(friendlyMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsage();
+  }, [authSession]);
+
+  if (loading) return <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center text-slate-400">Cargando...</div>;
+  if (error) return <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-center text-red-500">{error}</div>;
+  if (!usage) return null;
+
+  const percentage = (usage.usedGB / usage.totalGB) * 100;
+
+  return (
+    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+      <h3 className="font-bold text-slate-900 flex items-center gap-2">
+        <LayoutDashboard className="w-5 h-5 text-slate-400" /> Almacenamiento (Storage)
+      </h3>
+      <div className="space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-slate-500">Bucket: <span className="font-bold text-slate-900">{usage.bucketName}</span></span>
+          <span className="font-bold text-brand">{usage.usedGB.toFixed(2)} GB / {usage.totalGB} GB</span>
+        </div>
+        <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div
+            className="bg-brand h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(percentage, 100)}%` }}
+          />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
 function Pagination({ currentPage, totalItems, itemsPerPage, onPageChange }: { currentPage: number; totalItems: number; itemsPerPage: number; onPageChange: (page: number) => void }) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -1398,7 +1374,7 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
     brand: "bg-brand/10 text-brand",
     green: "bg-green-50 text-green-600",
   };
-  
+
   return (
     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4", colors[color])}>
@@ -1415,9 +1391,9 @@ function PieceCard({ pieza, configCortes, onAction, onDetails }: { pieza: Pieza;
   const config = configCortes.find(c => c.nombre === pieza.tipo);
   const mDescongMax = config?.mermaDescongeladoMax ?? 8;
   const mTotalMax = config?.mermaTotalMax ?? 22;
-  
+
   return (
-    <motion.div 
+    <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -1450,7 +1426,7 @@ function PieceCard({ pieza, configCortes, onAction, onDetails }: { pieza: Pieza;
       </div>
 
       {nextEstado && (
-        <button 
+        <button
           onClick={(e) => { e.stopPropagation(); onAction(); }}
           className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
         >
@@ -1479,7 +1455,7 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
       {/* Summary Metrics */}
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-slate-900">Resumen</h3>
-        <ShareButton 
+        <ShareButton
           title={`Trazabilidad ${pieza.tipo}`}
           text={`Trazabilidad de Pieza: ${pieza.tipo}\nID: ${pieza.id}\nEstado: ${pieza.estado}\n\nResumen de Pesos:\n- Congelado: ${pieza.pesoCongelado}kg\n- Descongelado: ${pieza.pesoDescongelado}kg\n- Producido: ${pieza.pesoProducido}kg\n\nIndicadores:\n- Merma Descong: ${pieza.mermaDescongelado.toFixed(1)}%\n- Merma Total: ${pieza.mermaTotal.toFixed(1)}%\n- Rendimiento: ${pieza.rendimiento.toFixed(1)}%\n\nDetalles de Porciones:\n${pieza.porciones?.map(p => `- ${p.pesoGramos}g: ${p.cantidad} unid`).join('\n') || 'Sin porciones'}`}
         />
@@ -1546,8 +1522,8 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
           <div key={reg.id} className="relative pl-10">
             <div className={cn(
               "absolute left-2 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10",
-              reg.tipoEvento === TipoEvento.CONGELADO ? "bg-blue-500" : 
-              reg.tipoEvento === TipoEvento.DESCONGELADO ? "bg-yellow-500" : "bg-green-500"
+              reg.tipoEvento === TipoEvento.CONGELADO ? "bg-blue-500" :
+                reg.tipoEvento === TipoEvento.DESCONGELADO ? "bg-yellow-500" : "bg-green-500"
             )} />
             <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-sm">
               <div className="flex justify-between items-start mb-3">
@@ -1556,13 +1532,13 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                   <p className="text-lg font-bold text-slate-900">{reg.peso} kg</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <ShareButton 
+                  <ShareButton
                     title={`Registro ${reg.tipoEvento}`}
                     text={`Registro de Trazabilidad\nPieza: ${pieza.tipo}\nEstado: ${pieza.estado}\nEvento: ${reg.tipoEvento}\nPeso: ${reg.peso}kg\nFecha y Hora: ${format(new Date(reg.fecha), "dd/MM/yyyy HH:mm")}\nUsuario: ${reg.usuario}`}
                     imageUrl={reg.foto}
                   />
                   <p className="text-[10px] text-slate-400 text-right">
-                    {format(new Date(reg.fecha), "d MMM, HH:mm", { locale: es })}<br/>
+                    {format(new Date(reg.fecha), "d MMM, HH:mm", { locale: es })}<br />
                     <span className="font-medium text-slate-500">Por: {reg.usuario}</span>
                   </p>
                 </div>
@@ -1570,9 +1546,9 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
               {reg.foto && (
                 <div className="space-y-3">
                   <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[400px] mx-auto">
-                    <img 
-                      src={reg.foto} 
-                      alt={reg.tipoEvento} 
+                    <img
+                      src={reg.foto}
+                      alt={reg.tipoEvento}
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
                     />
@@ -1593,9 +1569,9 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                         <Scale className="w-3 h-3" /> Evidencia de Merma:
                       </p>
                       <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[300px] mx-auto border-2 border-brand/20">
-                        <img 
-                          src={reg.fotoMerma} 
-                          alt="Merma" 
+                        <img
+                          src={reg.fotoMerma}
+                          alt="Merma"
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
@@ -1643,14 +1619,14 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
       />
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 100, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 100, scale: 0.95 }}
@@ -1677,7 +1653,7 @@ function AddPieceForm({ configCortes, onSubmit, onCancel }: { configCortes: Conf
     <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onSubmit(tipo); }}>
       <div className="space-y-2">
         <label className="text-sm font-bold text-slate-700">Tipo de Corte</label>
-        <select 
+        <select
           required
           value={tipo}
           onChange={(e) => setTipo(e.target.value)}
@@ -1690,14 +1666,14 @@ function AddPieceForm({ configCortes, onSubmit, onCancel }: { configCortes: Conf
         </select>
       </div>
       <div className="flex gap-4">
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={onCancel}
           className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors"
         >
           Cancelar
         </button>
-        <button 
+        <button
           type="submit"
           className="flex-1 py-4 bg-black text-white font-bold rounded-2xl hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
         >
@@ -1756,7 +1732,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
       const totalPorcionesGramos = porciones.reduce((sum, p) => sum + (p.pesoGramos * p.cantidad), 0);
       const totalPorcionesKg = totalPorcionesGramos / 1000;
       const margenError = pesoNum * 0.1;
-      
+
       if (Math.abs(totalPorcionesKg - pesoNum) > margenError) {
         const portionWarning = `La suma de las porciones (${totalPorcionesKg.toFixed(2)}kg) no coincide con el peso producido (${pesoNum}kg).`;
         warningMsg = warningMsg ? `${warningMsg}\n\n${portionWarning}` : `Aviso: ${portionWarning}`;
@@ -1777,9 +1753,9 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     setIsSubmitting(true);
     try {
       await onSubmit(
-        pieza.id, 
-        Number(peso), 
-        foto!, 
+        pieza.id,
+        Number(peso),
+        foto!,
         isProducido ? porciones : undefined,
         isProducido ? fotoMerma || undefined : undefined
       );
@@ -1804,8 +1780,8 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
         <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
           <Scale className="w-4 h-4" /> Peso Actual (kg)
         </label>
-        <input 
-          type="number" 
+        <input
+          type="number"
           step="0.01"
           required
           disabled={isSubmitting}
@@ -1821,23 +1797,23 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
           <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
             <Plus className="w-4 h-4" /> Detalle de Porciones
           </label>
-          
+
           <div className="flex gap-2">
-            <input 
-              type="number" 
+            <input
+              type="number"
               placeholder="Peso (g)"
               value={newPorcion.pesoGramos}
               onChange={(e) => setNewPorcion({ ...newPorcion, pesoGramos: e.target.value })}
               className="flex-1 p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand"
             />
-            <input 
-              type="number" 
+            <input
+              type="number"
               placeholder="Cant."
               value={newPorcion.cantidad}
               onChange={(e) => setNewPorcion({ ...newPorcion, cantidad: e.target.value })}
               className="w-20 p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand"
             />
-            <button 
+            <button
               type="button"
               onClick={handleAddPorcion}
               className="p-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-colors"
@@ -1850,7 +1826,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
             {porciones.map((p, i) => (
               <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
                 <span className="text-sm font-medium">{pieza.tipo} {p.pesoGramos}g - {p.cantidad} unid</span>
-                <button 
+                <button
                   type="button"
                   onClick={() => handleRemovePorcion(i)}
                   className="p-1 text-slate-400 hover:text-red-500 transition-colors"
@@ -1876,7 +1852,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
             <AlertTriangle className="w-5 h-5" />
             <h3 className="font-bold">Evidencia de Merma (Opcional)</h3>
           </div>
-          
+
           <p className="text-xs text-slate-500">
             Capture una foto de los desperdicios o recortes en la báscula para respaldar el rendimiento registrado.
           </p>
@@ -1891,15 +1867,15 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
       )}
 
       <div className="flex gap-4 pt-4">
-        <button 
-          type="button" 
+        <button
+          type="button"
           onClick={onCancel}
           disabled={isSubmitting}
           className="flex-1 py-4 font-bold text-slate-500 hover:bg-slate-50 rounded-2xl transition-colors disabled:opacity-50"
         >
           Cancelar
         </button>
-        <button 
+        <button
           disabled={!peso || !foto || isSubmitting}
           onClick={handleSubmit}
           className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
@@ -1956,13 +1932,13 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
             </div>
 
             <div className="flex gap-4">
-              <button 
+              <button
                 onClick={() => setShowConfirmModal(false)}
                 className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
               >
                 Revisar
               </button>
-              <button 
+              <button
                 onClick={confirmSubmit}
                 className="flex-[1.5] py-3 px-4 bg-black text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95"
               >
@@ -2023,12 +1999,12 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
 
   const saveEdit = async () => {
     if (!editValues || !editingId) return;
-    
+
     // Optimistic update
     const previousCortes = [...configCortes];
     setConfigCortes(configCortes.map(c => c.id === editingId ? editValues : c));
     setEditingId(null);
-    
+
     try {
       await supabaseService.saveConfigCorte(editValues);
       setEditValues(null);
@@ -2047,8 +2023,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase">Nombre del Corte</label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={newCorte.nombre}
               onChange={(e) => setNewCorte({ ...newCorte, nombre: e.target.value })}
               placeholder="Ej: Picaña"
@@ -2057,8 +2033,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase">Merma Descong. Máx (%)</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               value={newCorte.mermaDescongeladoMax}
               onChange={(e) => setNewCorte({ ...newCorte, mermaDescongeladoMax: Number(e.target.value) })}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand"
@@ -2066,15 +2042,15 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-400 uppercase">Merma Total Máx (%)</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               value={newCorte.mermaTotalMax}
               onChange={(e) => setNewCorte({ ...newCorte, mermaTotalMax: Number(e.target.value) })}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
         </div>
-        <button 
+        <button
           onClick={handleAdd}
           disabled={isSaving || !newCorte.nombre}
           className="mt-6 w-full md:w-auto px-8 py-3 bg-black text-white font-bold rounded-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
@@ -2103,8 +2079,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
             return (
               <div key={c.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-6">
                 <div className="flex-1">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={displayValues.nombre}
                     disabled={!isEditing}
                     onChange={(e) => setEditValues({ ...displayValues, nombre: e.target.value })}
@@ -2117,8 +2093,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
                 <div className="grid grid-cols-2 gap-4 flex-1">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Merma Descong. (%)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={displayValues.mermaDescongeladoMax}
                       disabled={!isEditing}
                       onChange={(e) => setEditValues({ ...displayValues, mermaDescongeladoMax: Number(e.target.value) })}
@@ -2130,8 +2106,8 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">Merma Total (%)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={displayValues.mermaTotalMax}
                       disabled={!isEditing}
                       onChange={(e) => setEditValues({ ...displayValues, mermaTotalMax: Number(e.target.value) })}
@@ -2142,17 +2118,17 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
                     />
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   {isEditing ? (
                     <>
-                      <button 
+                      <button
                         onClick={saveEdit}
                         className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all flex items-center gap-1"
                       >
                         <Save className="w-3 h-3" /> Aceptar
                       </button>
-                      <button 
+                      <button
                         onClick={cancelEditing}
                         className="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200 transition-all"
                       >
@@ -2161,13 +2137,13 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
                     </>
                   ) : (
                     <>
-                      <button 
+                      <button
                         onClick={() => startEditing(c)}
                         className="px-4 py-2 bg-black text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
                       >
                         <Settings className="w-3 h-3" /> Editar
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleRemove(c.id)}
                         className="p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-all"
                         title="Eliminar"

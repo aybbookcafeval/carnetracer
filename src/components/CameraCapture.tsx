@@ -20,39 +20,25 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
   const startCamera = async () => {
     setError(null);
     try {
-<<<<<<< HEAD
       // Try environment camera first (back camera on mobile), requesting high resolution
-=======
-      // Try environment camera first (back camera on mobile)
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       let stream: MediaStream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
             facingMode: "environment",
-<<<<<<< HEAD
-            width:  { ideal: 1920, min: 1280 },
+            width: { ideal: 1920, min: 1280 },
             height: { ideal: 1080, min: 720 },
-            aspectRatio: { ideal: 16/9 },
-=======
-            aspectRatio: { ideal: 9/16 }
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
-          } 
+            aspectRatio: { ideal: 16 / 9 },
+          }
         });
       } catch (err) {
         console.warn("Environment camera not found, falling back to default video device.");
-<<<<<<< HEAD
         // Fallback to any camera, still requesting decent resolution
-        stream = await navigator.mediaDevices.getUserMedia({ 
+        stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            width:  { ideal: 1920, min: 1280 },
+            width: { ideal: 1920, min: 1280 },
             height: { ideal: 1080, min: 720 },
           }
-=======
-        // Fallback to any camera
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { aspectRatio: { ideal: 9/16 } } 
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
         });
       }
 
@@ -81,7 +67,6 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
           if (canvasRef.current) {
             const context = canvasRef.current.getContext("2d");
             if (context) {
-<<<<<<< HEAD
               // Keep up to 1920px — enough for AI analysis without excessive file size
               const maxWidth = 1920;
               const scale = Math.min(1, maxWidth / img.width);
@@ -91,14 +76,6 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
               context.imageSmoothingQuality = "high";
               context.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
               const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.88);
-=======
-              const maxWidth = 640;
-              const scale = Math.min(1, maxWidth / img.width);
-              canvasRef.current.width = img.width * scale;
-              canvasRef.current.height = img.height * scale;
-              context.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
-              const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.6);
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
               setCapturedImage(dataUrl);
               onCapture(dataUrl);
             }
@@ -114,7 +91,6 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext("2d");
       if (context) {
-<<<<<<< HEAD
         // Capture at native resolution up to 1920px — preserves detail for AI analysis
         const maxWidth = 1920;
         const scale = Math.min(1, maxWidth / videoRef.current.videoWidth);
@@ -127,21 +103,6 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
         const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.88);
         setCapturedImage(dataUrl);
         onCapture(dataUrl);
-
-=======
-        // Downscale for storage (max 640px width)
-        const maxWidth = 640;
-        const scale = Math.min(1, maxWidth / videoRef.current.videoWidth);
-        canvasRef.current.width = videoRef.current.videoWidth * scale;
-        canvasRef.current.height = videoRef.current.videoHeight * scale;
-        
-        context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
-        // Use lower quality JPEG to save space
-        const dataUrl = canvasRef.current.toDataURL("image/jpeg", 0.6);
-        setCapturedImage(dataUrl);
-        onCapture(dataUrl);
-        
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
         // Stop stream
         streamRef.current?.getTracks().forEach(track => track.stop());
         streamRef.current = null;
@@ -162,11 +123,11 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
 
   return (
     <div className={cn("relative rounded-xl overflow-hidden bg-black aspect-[9/16] max-w-[350px] mx-auto flex items-center justify-center", className)}>
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        className="hidden" 
-        accept="image/*" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*"
         onChange={handleFileUpload}
       />
 
@@ -181,7 +142,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
               <Camera className="w-12 h-12" />
               <span className="font-medium text-sm">Cámara</span>
             </button>
-            
+
             {isAdmin && (
               <button
                 type="button"
@@ -193,7 +154,7 @@ export function CameraCapture({ onCapture, isAdmin = false, className }: CameraC
               </button>
             )}
           </div>
-          
+
           {error && (
             <p className="text-brand text-xs font-medium px-4 text-center">{error}</p>
           )}
