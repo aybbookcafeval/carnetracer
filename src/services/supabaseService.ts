@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion } from '../types';
+import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia } from '../types';
 
 const getClient = () => {
   const client = getSupabase();
@@ -132,7 +132,8 @@ export const supabaseService = {
       cantidad: Number(p.cantidad),
       unidad: p.unidad,
       fecha: p.fecha,
-      encargado: p.encargado
+      encargado: p.encargado,
+      status: !!p.status
     }));
   },
 
@@ -145,8 +146,17 @@ export const supabaseService = {
         cantidad: produccion.cantidad,
         unidad: produccion.unidad,
         fecha: produccion.fecha,
-        encargado: produccion.encargado
+        encargado: produccion.encargado,
+        status: produccion.status || false
       });
+    if (error) throw error;
+  },
+
+  async updateProduccionStatus(id: string, status: boolean) {
+    const { error } = await getClient()
+      .from('produccion')
+      .update({ status })
+      .eq('id', id);
     if (error) throw error;
   },
 
@@ -236,7 +246,7 @@ export const supabaseService = {
   },
 
   // Transferencias
-  async createTransferencia(transferencia: any) {
+  async createTransferencia(transferencia: Transferencia) {
     const { error } = await getClient()
       .from('transferencias')
       .insert({
@@ -246,12 +256,13 @@ export const supabaseService = {
         productos: JSON.stringify(transferencia.productos),
         foto_url: transferencia.fotoUrl,
         usuario: transferencia.usuario,
-        fecha: transferencia.fecha
+        fecha: transferencia.fecha,
+        status: transferencia.status || false
       });
     if (error) throw error;
   },
 
-  async getTransferencias() {
+  async getTransferencias(): Promise<Transferencia[]> {
     const { data, error } = await getClient()
       .from('transferencias')
       .select('*')
@@ -266,7 +277,16 @@ export const supabaseService = {
       productos: typeof t.productos === 'string' ? JSON.parse(t.productos) : t.productos,
       fotoUrl: t.foto_url,
       usuario: t.usuario,
-      fecha: t.fecha
+      fecha: t.fecha,
+      status: !!t.status
     }));
+  },
+
+  async updateTransferenciaStatus(id: string, status: boolean) {
+    const { error } = await getClient()
+      .from('transferencias')
+      .update({ status })
+      .eq('id', id);
+    if (error) throw error;
   }
 };

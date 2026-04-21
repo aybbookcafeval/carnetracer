@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search } from "lucide-react";
+import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search, CheckCircle2 } from "lucide-react";
 import { Produccion, Usuario } from "../types";
+import { cn } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
 import { CameraCapture } from "./CameraCapture";
@@ -42,6 +43,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [filterEncargado, setFilterEncargado] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
 
   // Cargar historial al inicio
   useEffect(() => {
@@ -57,10 +59,11 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       const itemDate = new Date(p.fecha).toISOString().split('T')[0];
       const matchesStartDate = !filterStartDate || itemDate >= filterStartDate;
       const matchesEndDate = !filterEndDate || itemDate <= filterEndDate;
+      const matchesStatus = filterStatus === "" ? true : (filterStatus === "true" ? p.status : !p.status);
 
-      return matchesName && matchesEncargado && matchesStartDate && matchesEndDate;
+      return matchesName && matchesEncargado && matchesStartDate && matchesEndDate && matchesStatus;
     });
-  }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate]);
+  }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate, filterStatus]);
 
   // --- LÓGICA DE IA ---
   const handleCapture = async (imageSrc: string) => {
@@ -135,6 +138,16 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     }
   };
 
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await supabaseService.updateProduccionStatus(id, !currentStatus);
+      setProduccion(prev => prev.map(p => p.id === id ? { ...p, status: !currentStatus } : p));
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert("Error al actualizar el estado.");
+    }
+  };
+
   // --- GUARDAR TODO EN BD ---
   const handleSaveAllToDatabase = async () => {
     if (pendingItems.length === 0) return;
@@ -147,7 +160,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
         cantidad: item.cantidad,
         unidad: item.unidad,
         fecha: new Date().toISOString(),
-        encargado: user?.nombre || "Sistema"
+        encargado: user?.nombre || "Sistema",
+        status: false
       }));
 
       // Guardar en paralelo
@@ -321,9 +335,9 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               Historial de Producción
             </h2>
 
-            {(filterName || filterEncargado || filterStartDate || filterEndDate) && (
+            {(filterName || filterEncargado || filterStartDate || filterEndDate || filterStatus) && (
               <button
-                onClick={() => { setFilterName(""); setFilterEncargado(""); setFilterStartDate(""); setFilterEndDate(""); }}
+                onClick={() => { setFilterName(""); setFilterEncargado(""); setFilterStartDate(""); setFilterEndDate(""); setFilterStatus(""); }}
                 className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
               >
                 <X className="w-3 h-3" /> Limpiar Filtros
@@ -331,7 +345,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -370,6 +384,18 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand/50"
               />
             </div>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-brand/50 appearance-none"
+              >
+                <option value="">Estados...</option>
+                <option value="true">Listo</option>
+                <option value="false">Pendiente</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -381,6 +407,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                 <th className="p-4">Preparado</th>
                 <th className="p-4">Cantidad</th>
                 <th className="p-4">Encargado</th>
+                <th className="p-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -391,6 +418,25 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                     <td className="p-4 font-medium text-slate-700">{p.nombrePreparado}</td>
                     <td className="p-4 text-slate-600">{p.cantidad} {p.unidad}</td>
                     <td className="p-4 text-slate-500">{p.encargado}</td>
+                    <td className="p-4">
+                      <button
+                        onClick={() => handleToggleStatus(p.id, p.status)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
+                          p.status 
+                            ? "bg-green-100 text-green-700 border-green-200" 
+                            : "bg-amber-100 text-amber-700 border-amber-200"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                          p.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
+                        )}>
+                          {p.status && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        {p.status ? "Listo" : "Pendiente"}
+                      </button>
+                    </td>
                   </tr>
                 ))
               ) : (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2 } from "lucide-react";
 import { Sede, Transferencia, ProductoTransferencia, Usuario } from "../types";
 import { cn } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
@@ -27,6 +27,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("");
   const [selectedTransfer, setSelectedTransfer] = useState<Transferencia | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
@@ -103,6 +104,16 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     setShowConfirmModal(true);
   };
 
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    try {
+      await supabaseService.updateTransferenciaStatus(id, !currentStatus);
+      setTransferencias(transferencias.map(t => t.id === id ? { ...t, status: !currentStatus } : t));
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert("Error al actualizar el estado.");
+    }
+  };
+
   const confirmSave = async () => {
     setShowConfirmModal(false);
     setIsSubmitting(true);
@@ -120,7 +131,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
         productos,
         fotoUrl,
         usuario: user?.nombre || "Usuario",
-        fecha: new Date().toISOString()
+        fecha: new Date().toISOString(),
+        status: false
       };
 
       await supabaseService.createTransferencia(newTransferencia);
@@ -163,7 +175,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     const matchesDate = (filterStartDate && filterEndDate)
       ? (new Date(t.fecha) >= new Date(filterStartDate) && new Date(t.fecha) <= new Date(filterEndDate))
       : true;
-    return matchesSede && matchesSearch && matchesDate;
+    const matchesStatus = filterStatus === "" ? true : (filterStatus === "true" ? t.status : !t.status);
+    return matchesSede && matchesSearch && matchesDate && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredTransferencias.length / ITEMS_PER_PAGE);
@@ -357,7 +370,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               <Filter className="w-4 h-4" />
               <h2>Filtros Avanzados</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
               <input
                 type="text"
                 placeholder="Buscar producto..."
@@ -385,6 +398,15 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 onChange={(e) => { setFilterEndDate(e.target.value); setCurrentPage(1); }}
                 className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
               />
+              <select
+                value={filterStatus}
+                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}
+                className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 font-medium outline-none"
+              >
+                <option value="">Todos los Estados</option>
+                <option value="true">Listo</option>
+                <option value="false">Pendiente</option>
+              </select>
             </div>
           </div>
 
@@ -397,6 +419,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     <th className="p-4">Ruta</th>
                     <th className="p-4">Productos</th>
                     <th className="p-4">Usuario</th>
+                    <th className="p-4">Status</th>
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -432,6 +455,25 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                         </td>
                         <td className="p-4 text-slate-600">
                           {t.usuario}
+                        </td>
+                        <td className="p-4">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(t.id, t.status); }}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
+                              t.status 
+                                ? "bg-green-100 text-green-700 border-green-200" 
+                                : "bg-amber-100 text-amber-700 border-amber-200"
+                            )}
+                          >
+                            <div className={cn(
+                              "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                              t.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
+                            )}>
+                              {t.status && <CheckCircle2 className="w-3 h-3 text-white" />}
+                            </div>
+                            {t.status ? "Listo" : "Pendiente"}
+                          </button>
                         </td>
                         <td className="p-4 text-right">
                           <button

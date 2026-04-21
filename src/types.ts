@@ -94,6 +94,7 @@ export interface Produccion {
   unidad: 'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes';
   fecha: string;
   encargado: string;
+  status: boolean;
 }
 
 export interface ProductoTransferencia {
@@ -110,6 +111,7 @@ export interface Transferencia {
   fotoUrl?: string;
   usuario: string;
   fecha: string;
+  status: boolean;
 }
 
 export const ESTADO_COLORS: Record<EstadoPieza, string> = {
