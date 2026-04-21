@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search, CheckCircle2 } from "lucide-react";
-import { Produccion, Usuario } from "../types";
+import { Produccion, Usuario, Receta } from "../types";
 import { cn } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
@@ -24,6 +24,8 @@ interface PendingItem {
 export const ProduccionView: React.FC<Props> = ({ user }) => {
   // Historial real de la BD
   const [produccion, setProduccion] = useState<Produccion[]>([]);
+  const [recetas, setRecetas] = useState<Receta[]>([]);
+  const [recetasError, setRecetasError] = useState<string | null>(null);
 
   // Lista unificada de items pendientes de guardar (IA + Manuales)
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
@@ -39,6 +41,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Estados de Filtros
   const [filterName, setFilterName] = useState("");
@@ -47,9 +50,30 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [filterEncargado, setFilterEncargado] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
 
-  // Cargar historial al inicio
+  // Cargar historial y recetas al inicio
   useEffect(() => {
     supabaseService.fetchProduccion().then(setProduccion);
+
+    // Cargar y sembrar recetas si es necesario
+    const loadRecetas = async () => {
+      try {
+        const { data, error } = await (async () => {
+          const { getSupabase } = await import('../lib/supabase');
+          const client = getSupabase();
+          if (!client) return { data: null, error: { message: 'Supabase client no disponible' } };
+          return await client.from('recetas').select('*').order('nombre');
+        })();
+        if (error) {
+          setRecetasError(error.message);
+        } else {
+          setRecetas((data || []).map((r: any) => ({ id: r.id, nombre: r.nombre })));
+          setRecetasError(null);
+        }
+      } catch (e: any) {
+        setRecetasError(e.message || 'Error desconocido');
+      }
+    };
+    loadRecetas();
   }, []);
 
   // Lógica de Filtrado
@@ -220,15 +244,37 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               {editingId ? "✏️ Editando Item..." : "➕ Agregar Item a la Lista"}
             </div>
 
-            <div className="md:col-span-4">
+            <div className="md:col-span-4 relative">
               <input
                 type="text"
                 placeholder="Nombre del preparado"
                 value={nombrePreparado}
-                onChange={e => setNombrePreparado(e.target.value)}
+                onChange={e => { setNombrePreparado(e.target.value); setShowSuggestions(true); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none"
                 required
+                autoComplete="off"
               />
+              {showSuggestions && recetas.length > 0 && (
+                <ul className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                  {recetas
+                    .filter(r => r.nombre.toLowerCase().includes(nombrePreparado.toLowerCase()))
+                    .map(r => (
+                      <li
+                        key={r.id}
+                        onMouseDown={() => { setNombrePreparado(r.nombre); setShowSuggestions(false); }}
+                        className="px-4 py-2.5 text-sm text-slate-700 hover:bg-brand/10 hover:text-brand cursor-pointer border-b border-slate-50 last:border-0"
+                      >
+                        {r.nombre}
+                      </li>
+                    ))
+                  }
+                  {recetas.filter(r => r.nombre.toLowerCase().includes(nombrePreparado.toLowerCase())).length === 0 && (
+                    <li className="px-4 py-2.5 text-sm text-slate-400 italic">Sin coincidencias — se guardará como nuevo</li>
+                  )}
+                </ul>
+              )}
             </div>
 
             <div className="md:col-span-3 flex gap-2">
@@ -312,7 +358,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                       <div>
                         <div className="font-medium text-slate-800 text-lg">{item.nombrePreparado}</div>
                         <div className="text-sm text-slate-500 font-mono">
-                          {item.cantidad} {item.unidad} 
+                          {item.cantidad} {item.unidad}
                           {item.encargado && <span className="ml-2 italic text-slate-400">· x {item.encargado}</span>}
                         </div>
                       </div>
@@ -439,23 +485,34 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                     <td className="p-4 text-slate-600">{p.cantidad} {p.unidad}</td>
                     <td className="p-4 text-slate-500">{p.encargado}</td>
                     <td className="p-4">
-                      <button
-                        onClick={() => handleToggleStatus(p.id, p.status)}
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
-                          p.status 
-                            ? "bg-green-100 text-green-700 border-green-200" 
+                      {user?.rol === 'ADMIN' ? (
+                        <button
+                          onClick={() => handleToggleStatus(p.id, p.status)}
+                          className={cn(
+                            "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
+                            p.status
+                              ? "bg-green-100 text-green-700 border-green-200"
+                              : "bg-amber-100 text-amber-700 border-amber-200"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                            p.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
+                          )}>
+                            {p.status && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          </div>
+                          {p.status ? "Listo" : "Pendiente"}
+                        </button>
+                      ) : (
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border",
+                          p.status
+                            ? "bg-green-100 text-green-700 border-green-200"
                             : "bg-amber-100 text-amber-700 border-amber-200"
-                        )}
-                      >
-                        <div className={cn(
-                          "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                          p.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
                         )}>
-                          {p.status && <CheckCircle2 className="w-3 h-3 text-white" />}
-                        </div>
-                        {p.status ? "Listo" : "Pendiente"}
-                      </button>
+                          {p.status ? "Listo" : "Pendiente"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))

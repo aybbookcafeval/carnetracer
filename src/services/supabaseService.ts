@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia } from '../types';
+import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia, Receta } from '../types';
 
 const getClient = () => {
   const client = getSupabase();
@@ -287,6 +287,27 @@ export const supabaseService = {
       .from('transferencias')
       .update({ status })
       .eq('id', id);
+    if (error) throw error;
+  },
+
+  // Recetas
+  async fetchRecetas(): Promise<Receta[]> {
+    const { data, error } = await getClient()
+      .from('recetas')
+      .select('*')
+      .order('nombre');
+
+    if (error) throw error;
+    return (data || []).map(r => ({
+      id: r.id,
+      nombre: r.nombre
+    }));
+  },
+
+  async createRecetas(recetas: Partial<Receta>[]) {
+    const { error } = await getClient()
+      .from('recetas')
+      .insert(recetas);
     if (error) throw error;
   }
 };

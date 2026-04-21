@@ -457,23 +457,34 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                           {t.usuario}
                         </td>
                         <td className="p-4">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(t.id, t.status); }}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
-                              t.status 
-                                ? "bg-green-100 text-green-700 border-green-200" 
+                          {user?.rol === 'ADMIN' ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleStatus(t.id, t.status); }}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all border",
+                                t.status
+                                  ? "bg-green-100 text-green-700 border-green-200"
+                                  : "bg-amber-100 text-amber-700 border-amber-200"
+                              )}
+                            >
+                              <div className={cn(
+                                "w-4 h-4 rounded border flex items-center justify-center transition-colors",
+                                t.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
+                              )}>
+                                {t.status && <CheckCircle2 className="w-3 h-3 text-white" />}
+                              </div>
+                              {t.status ? "Listo" : "Pendiente"}
+                            </button>
+                          ) : (
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border",
+                              t.status
+                                ? "bg-green-100 text-green-700 border-green-200"
                                 : "bg-amber-100 text-amber-700 border-amber-200"
-                            )}
-                          >
-                            <div className={cn(
-                              "w-4 h-4 rounded border flex items-center justify-center transition-colors",
-                              t.status ? "bg-green-600 border-green-600" : "bg-white border-amber-400"
                             )}>
-                              {t.status && <CheckCircle2 className="w-3 h-3 text-white" />}
-                            </div>
-                            {t.status ? "Listo" : "Pendiente"}
-                          </button>
+                              {t.status ? "Listo" : "Pendiente"}
+                            </span>
+                          )}
                         </td>
                         <td className="p-4 text-right">
                           <button

@@ -132,3 +132,8 @@ export const EVENT_FOR_STATE: Partial<Record<EstadoPieza, TipoEvento>> = {
   [EstadoPieza.DESCONGELADA]: TipoEvento.DESCONGELADO,
   [EstadoPieza.PRODUCIDA]: TipoEvento.PRODUCIDO,
 };
+
+export interface Receta {
+  id: string;
+  nombre: string;
+}
