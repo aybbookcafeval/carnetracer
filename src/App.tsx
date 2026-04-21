@@ -1713,11 +1713,8 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
   const [foto, setFoto] = useState<string | null>(null);
   const [fotoMerma, setFotoMerma] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-<<<<<<< HEAD
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
-=======
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
   const [porciones, setPorciones] = useState<Porcion[]>([]);
   const [newPorcion, setNewPorcion] = useState({ pesoGramos: "", cantidad: "" });
 
@@ -1767,7 +1764,6 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     }
 
     if (warningMsg) {
-<<<<<<< HEAD
       setWarningMessage(warningMsg);
     } else {
       setWarningMessage("");
@@ -1778,22 +1774,12 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
 
   const confirmSubmit = async () => {
     setShowConfirmModal(false);
-=======
-      alert(`${warningMsg}\n\nSe registrará de todas formas.`);
-    }
-
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     setIsSubmitting(true);
     try {
       await onSubmit(
         pieza.id, 
-<<<<<<< HEAD
         Number(peso), 
         foto!, 
-=======
-        pesoNum, 
-        foto, 
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
         isProducido ? porciones : undefined,
         isProducido ? fotoMerma || undefined : undefined
       );
@@ -1924,7 +1910,6 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
               Validando con IA...
             </>
           ) : (
-<<<<<<< HEAD
             "Registrar"
           )}
         </button>
@@ -1987,12 +1972,6 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
           </div>
         </div>
       )}
-=======
-            "Confirmar Registro"
-          )}
-        </button>
-      </div>
->>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     </div>
   );
 }
