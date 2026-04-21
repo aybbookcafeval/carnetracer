@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
 import { Sede, Transferencia, ProductoTransferencia, Usuario } from "../types";
+<<<<<<< HEAD
 import { cn } from "../lib/utils";
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
 import { CameraCapture } from "./CameraCapture";
@@ -14,13 +17,20 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
   // Form state
   const [sedeOrigen, setSedeOrigen] = useState<Sede>(Sede.ALMACEN_PRINCIPAL);
   const [sedeDestino, setSedeDestino] = useState<Sede>(Sede.COCINA);
   const [productos, setProductos] = useState<ProductoTransferencia[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+<<<<<<< HEAD
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
 
   // Filter state
   const [filterSede, setFilterSede] = useState<Sede | "">("");
@@ -33,7 +43,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   useEffect(() => {
     loadTransferencias();
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     const handleOpenNueva = () => setIsCapturing(true);
     document.addEventListener('open-nueva-transferencia', handleOpenNueva);
     return () => document.removeEventListener('open-nueva-transferencia', handleOpenNueva);
@@ -83,6 +97,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       alert("Agregue al menos un producto.");
       return;
     }
+<<<<<<< HEAD
 
     const errors: string[] = [];
     if (sedeOrigen === sedeDestino) {
@@ -106,6 +121,13 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   const confirmSave = async () => {
     setShowConfirmModal(false);
+=======
+    if (productos.some(p => !p.nombre.trim())) {
+      alert("Todos los productos deben tener un nombre.");
+      return;
+    }
+
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     setIsSubmitting(true);
     try {
       let fotoUrl = undefined;
@@ -126,7 +148,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
       await supabaseService.createTransferencia(newTransferencia);
       setTransferencias([newTransferencia, ...transferencias]);
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       // Reset form
       setFoto(null);
       setProductos([]);
@@ -142,7 +168,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   const handleShare = async (t: Transferencia) => {
     const text = `Transferencia de Almacén\nID: ${t.id}\nDe: ${t.sedeOrigen} -> A: ${t.sedeDestino}\nFecha: ${format(new Date(t.fecha), "dd/MM/yyyy HH:mm")}\nUsuario: ${t.usuario}\n\nProductos:\n${t.productos.map(p => `- ${p.cantidad} ${p.unidad} ${p.nombre}`).join('\n')}`;
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     if (navigator.share) {
       try {
         await navigator.share({
@@ -161,7 +191,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const filteredTransferencias = transferencias.filter(t => {
     const matchesSede = filterSede ? (t.sedeOrigen === filterSede || t.sedeDestino === filterSede) : true;
     const matchesSearch = filterSearch ? t.productos.some(p => p.nombre.toLowerCase().includes(filterSearch.toLowerCase())) : true;
+<<<<<<< HEAD
     const matchesDate = (filterStartDate && filterEndDate)
+=======
+    const matchesDate = (filterStartDate && filterEndDate) 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       ? (new Date(t.fecha) >= new Date(filterStartDate) && new Date(t.fecha) <= new Date(filterEndDate))
       : true;
     return matchesSede && matchesSearch && matchesDate;
@@ -209,8 +243,13 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino</label>
+<<<<<<< HEAD
                   <select
                     value={sedeDestino}
+=======
+                  <select 
+                    value={sedeDestino} 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                     onChange={(e) => setSedeDestino(e.target.value as Sede)}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"
                   >
@@ -229,7 +268,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 ) : (
                   <div className="relative rounded-xl overflow-hidden border border-slate-200">
                     <img src={foto} alt="Captura" className="w-full h-48 object-cover" />
+<<<<<<< HEAD
                     <button
+=======
+                    <button 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                       onClick={() => { setFoto(null); setProductos([]); }}
                       className="absolute top-2 right-2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70"
                     >
@@ -251,7 +294,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-slate-700">Lista de Productos</label>
+<<<<<<< HEAD
                 <button
+=======
+                <button 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                   onClick={handleAddProduct}
                   className="text-xs font-bold text-brand flex items-center gap-1 hover:text-brand/80"
                 >
@@ -265,6 +312,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     No hay productos. Tome una foto o añada manualmente.
                   </div>
                 ) : (
+<<<<<<< HEAD
                   productos.map((p, i) => {
                     const isNameInvalid = !p.nombre.trim();
                     const isQtyInvalid = p.cantidad <= 0;
@@ -320,6 +368,48 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               </div>
 
               <button
+=======
+                  productos.map((p, i) => (
+                    <div key={i} className="flex gap-2 items-start bg-slate-50 p-2 rounded-lg border border-slate-100">
+                      <div className="flex-1 space-y-2">
+                        <input 
+                          type="text" 
+                          value={p.nombre}
+                          onChange={(e) => handleUpdateProduct(i, 'nombre', e.target.value)}
+                          placeholder="Nombre del producto"
+                          className="w-full p-2 text-sm border border-slate-200 rounded-md bg-white"
+                        />
+                        <div className="flex gap-2">
+                          <input 
+                            type="number" 
+                            value={p.cantidad}
+                            onChange={(e) => handleUpdateProduct(i, 'cantidad', Number(e.target.value))}
+                            className="w-20 p-2 text-sm border border-slate-200 rounded-md bg-white"
+                            min="0.1"
+                            step="0.1"
+                          />
+                          <input 
+                            type="text" 
+                            value={p.unidad}
+                            onChange={(e) => handleUpdateProduct(i, 'unidad', e.target.value)}
+                            placeholder="Unidad"
+                            className="w-24 p-2 text-sm border border-slate-200 rounded-md bg-white"
+                          />
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleRemoveProduct(i)}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <button 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                 onClick={handleSave}
                 disabled={isSubmitting || isExtracting || productos.length === 0}
                 className="w-full py-4 bg-brand text-white font-bold rounded-xl hover:bg-brand/90 transition-all disabled:opacity-50 flex justify-center items-center gap-2"
@@ -359,14 +449,22 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               <h2>Filtros Avanzados</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+<<<<<<< HEAD
               <input
+=======
+              <input 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                 type="text"
                 placeholder="Buscar producto..."
                 value={filterSearch}
                 onChange={(e) => { setFilterSearch(e.target.value); setCurrentPage(1); }}
                 className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
               />
+<<<<<<< HEAD
               <select
+=======
+              <select 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                 value={filterSede}
                 onChange={(e) => { setFilterSede(e.target.value as Sede | ""); setCurrentPage(1); }}
                 className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 font-medium outline-none"
@@ -374,13 +472,21 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 <option value="">Todas las Sedes</option>
                 {Object.values(Sede).map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+<<<<<<< HEAD
               <input
+=======
+              <input 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                 type="date"
                 value={filterStartDate}
                 onChange={(e) => { setFilterStartDate(e.target.value); setCurrentPage(1); }}
                 className="p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
               />
+<<<<<<< HEAD
               <input
+=======
+              <input 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                 type="date"
                 value={filterEndDate}
                 onChange={(e) => { setFilterEndDate(e.target.value); setCurrentPage(1); }}
@@ -435,7 +541,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                           {t.usuario}
                         </td>
                         <td className="p-4 text-right">
+<<<<<<< HEAD
                           <button
+=======
+                          <button 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
                             onClick={(e) => { e.stopPropagation(); handleShare(t); }}
                             className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-lg transition-colors"
                             title="Compartir"
@@ -449,7 +559,48 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 </tbody>
               </table>
             </div>
+<<<<<<< HEAD
 
+=======
+            
+            {/* Modal de detalles */}
+            {selectedTransfer && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedTransfer(null)}>
+                <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold">Detalles de Transferencia</h2>
+                    <button onClick={() => setSelectedTransfer(null)} className="text-slate-400 hover:text-slate-600">Cerrar</button>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">ID</p><p className="font-medium">{selectedTransfer.id}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Fecha</p><p className="font-medium">{format(new Date(selectedTransfer.fecha), "dd/MM/yyyy HH:mm", { locale: es })}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Origen</p><p className="font-medium">{selectedTransfer.sedeOrigen}</p></div>
+                      <div><p className="text-slate-500 font-bold uppercase text-xs">Destino</p><p className="font-medium">{selectedTransfer.sedeDestino}</p></div>
+                    </div>
+                    <div>
+                      <p className="text-slate-500 font-bold uppercase text-xs mb-2">Productos</p>
+                      <div className="space-y-2">
+                        {selectedTransfer.productos.map((p, i) => (
+                          <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                            <span className="font-medium">{p.nombre}</span>
+                            <span className="font-bold text-brand">{p.cantidad} {p.unidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {selectedTransfer.fotoUrl && (
+                      <div>
+                        <p className="text-slate-500 font-bold uppercase text-xs mb-2">Evidencia</p>
+                        <img src={selectedTransfer.fotoUrl} alt="Evidencia" className="w-full rounded-lg border border-slate-200" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
@@ -477,6 +628,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
           </div>
         </div>
       )}
+<<<<<<< HEAD
 
       {/* Modal de detalles */}
       {selectedTransfer && (
@@ -573,6 +725,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
           </div>
         </div>
       )}
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     </div>
   );
 }

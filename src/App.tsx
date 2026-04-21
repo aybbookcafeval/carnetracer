@@ -62,9 +62,12 @@ const CURRENT_USER: Usuario = {
 export default function App() {
   const [user, setUser] = useState<Usuario | null>(null);
   const [authSession, setAuthSession] = useState<any>(null);
+<<<<<<< HEAD
   // Stable ID derived from the session — only changes on real sign-in/sign-out,
   // NOT on every TOKEN_REFRESHED event. Used as the dependency for data fetching.
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
   const [piezas, setPiezas] = useState<Pieza[]>([]);
   const [registros, setRegistros] = useState<RegistroPeso[]>([]);
   const [configCortes, setConfigCortes] = useState<ConfigCorte[]>([]);
@@ -131,8 +134,11 @@ export default function App() {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: authSession } }) => {
       setAuthSession(authSession);
+<<<<<<< HEAD
       const uid = authSession?.user?.id ?? null;
       setAuthUserId(uid);
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       if (authSession) {
         loadUserProfile(authSession.user.id);
       } else {
@@ -140,6 +146,7 @@ export default function App() {
       }
     });
 
+<<<<<<< HEAD
     // Listen for changes.
     // TOKEN_REFRESHED is fired when the user switches tabs and comes back —
     // Supabase silently renews the JWT. We update the session object but DO NOT
@@ -161,6 +168,13 @@ export default function App() {
           if (!prev) loadUserProfile(authSession.user.id);
           return prev;
         });
+=======
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, authSession) => {
+      setAuthSession(authSession);
+      if (authSession) {
+        loadUserProfile(authSession.user.id);
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       } else {
         setUser(null);
         setIsAuthLoading(false);
@@ -285,12 +299,18 @@ export default function App() {
     setIsGeneratingReport(false);
   };
 
+<<<<<<< HEAD
   // Fetch Data from Supabase.
   // Depends on authUserId (stable string), NOT on authSession (object).
   // This ensures TOKEN_REFRESHED events — which replace the session object
   // without changing the user — do NOT trigger an unnecessary data reload.
   useEffect(() => {
     if (!getSupabase() || !authUserId) {
+=======
+  // Fetch Data from Supabase
+  useEffect(() => {
+    if (!getSupabase() || !authSession) {
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
       setIsLoading(false);
       return;
     }
@@ -312,7 +332,11 @@ export default function App() {
       }
     };
     loadData();
+<<<<<<< HEAD
   }, [authUserId]);
+=======
+  }, [authSession]);
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
 
   // Business Logic: Calculations
   const calculateMetrics = (pieza: Pieza, newPeso: number, type: TipoEvento) => {
@@ -1689,8 +1713,11 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
   const [foto, setFoto] = useState<string | null>(null);
   const [fotoMerma, setFotoMerma] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+<<<<<<< HEAD
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
+=======
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
   const [porciones, setPorciones] = useState<Porcion[]>([]);
   const [newPorcion, setNewPorcion] = useState({ pesoGramos: "", cantidad: "" });
 
@@ -1740,6 +1767,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
     }
 
     if (warningMsg) {
+<<<<<<< HEAD
       setWarningMessage(warningMsg);
     } else {
       setWarningMessage("");
@@ -1750,12 +1778,22 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
 
   const confirmSubmit = async () => {
     setShowConfirmModal(false);
+=======
+      alert(`${warningMsg}\n\nSe registrará de todas formas.`);
+    }
+
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     setIsSubmitting(true);
     try {
       await onSubmit(
         pieza.id, 
+<<<<<<< HEAD
         Number(peso), 
         foto!, 
+=======
+        pesoNum, 
+        foto, 
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
         isProducido ? porciones : undefined,
         isProducido ? fotoMerma || undefined : undefined
       );
@@ -1886,6 +1924,7 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
               Validando con IA...
             </>
           ) : (
+<<<<<<< HEAD
             "Registrar"
           )}
         </button>
@@ -1948,6 +1987,12 @@ function RegistrationForm({ pieza, isAdmin, onSubmit, onCancel }: { pieza: Pieza
           </div>
         </div>
       )}
+=======
+            "Confirmar Registro"
+          )}
+        </button>
+      </div>
+>>>>>>> 6d218d4ce3a6b85bc86a362215731f6ff4eaf61f
     </div>
   );
 }
