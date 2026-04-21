@@ -1,4 +1,4 @@
-# CarneTracer - Meat Traceability & AI Analysis 🥩
+# CarneTracer - Meat Traceability & AI Analysis
 
 Sistema profesional de trazabilidad, control de mermas y gestión de producción para la industria cárnica, potenciado por Inteligencia Artificial via **OpenRouter** y persistencia en tiempo real con **Supabase**.
 
