@@ -480,6 +480,26 @@ export default function App() {
     }
   };
 
+  const markAsLoaded = async (pieceId: string) => {
+    const piece = piezas.find(p => p.id === pieceId);
+    if (!piece || piece.estado !== EstadoPieza.PRODUCIDA) return;
+
+    if (!confirm("¿Deseas marcar esta pieza como 'Cargado en Sistema'?")) return;
+
+    try {
+      const updatedPiece: Pieza = {
+        ...piece,
+        estado: EstadoPieza.CARGADO_EN_SISTEMA,
+        updatedAt: new Date().toISOString()
+      };
+      await supabaseService.updatePieza(updatedPiece);
+      setPiezas(piezas.map(p => p.id === pieceId ? updatedPiece : p));
+    } catch (error) {
+      console.error("Error marking piece as loaded:", error);
+      alert("Error al marcar como cargado en sistema.");
+    }
+  };
+
   // Alerts
   const alerts = useMemo(() => {
     return piezas.filter(p => {
@@ -559,7 +579,7 @@ export default function App() {
           active={activeTab === "produccion"}
           onClick={() => setActiveTab("produccion")}
           icon={<ChefHat />}
-          label="Producción"
+          label="Oricesamiento"
         />
         {user?.rol !== RolUsuario.COCINA && (
           <NavButton
@@ -776,7 +796,7 @@ export default function App() {
                     <div className="flex flex-col gap-4 mb-4">
                       <div className="flex justify-between items-center">
                         <h2 className="text-lg font-bold flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-green-600" /> Producción
+                          <TrendingUp className="w-5 h-5 text-green-600" /> Procesamiento
                         </h2>
                         <select
                           value={prodFilterType}
@@ -839,7 +859,7 @@ export default function App() {
                             return acc;
                           }, {})
                       ).length === 0 && (
-                          <p className="text-slate-500 italic text-sm col-span-full">No hay producción registrada en el rango seleccionado.</p>
+                          <p className="text-slate-500 italic text-sm col-span-full">No hay Procesamiento registrada en el rango seleccionado.</p>
                         )}
                     </div>
                   </section>
@@ -921,6 +941,7 @@ export default function App() {
                         configCortes={configCortes}
                         onAction={() => setRegistrationModal({ open: true, piece: p })}
                         onDetails={() => setDetailsModal({ open: true, piece: p })}
+                        onMarkAsLoaded={markAsLoaded}
                       />
                     ))}
                     {filteredPiezas.length === 0 && (
@@ -1386,7 +1407,7 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
   );
 }
 
-function PieceCard({ pieza, configCortes, onAction, onDetails }: { pieza: Pieza; configCortes: ConfigCorte[]; onAction: () => void; onDetails?: () => void }) {
+function PieceCard({ pieza, configCortes, onAction, onDetails, onMarkAsLoaded }: { pieza: Pieza; configCortes: ConfigCorte[]; onAction: () => void; onDetails?: () => void; onMarkAsLoaded?: (id: string) => void }) {
   const nextEstado = NEXT_STATE[pieza.estado];
   const config = configCortes.find(c => c.nombre === pieza.tipo);
   const mDescongMax = config?.mermaDescongeladoMax ?? 8;
@@ -1427,10 +1448,22 @@ function PieceCard({ pieza, configCortes, onAction, onDetails }: { pieza: Pieza;
 
       {nextEstado && (
         <button
-          onClick={(e) => { e.stopPropagation(); onAction(); }}
-          className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (nextEstado === EstadoPieza.CARGADO_EN_SISTEMA && onMarkAsLoaded) {
+              onMarkAsLoaded(pieza.id);
+            } else {
+              onAction();
+            }
+          }}
+          className={cn(
+            "w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95",
+            nextEstado === EstadoPieza.CARGADO_EN_SISTEMA
+              ? "bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-100"
+              : "bg-slate-900 hover:bg-slate-800 text-white"
+          )}
         >
-          Registrar {nextEstado}
+          {nextEstado === EstadoPieza.CARGADO_EN_SISTEMA ? "Marcar como Cargado" : `Registrar ${nextEstado}`}
           <ArrowRight className="w-4 h-4" />
         </button>
       )}
@@ -1500,7 +1533,7 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
       {pieza.porciones && pieza.porciones.length > 0 && (
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <Beef className="w-3 h-3" /> Detalle de Porciones Producción
+            <Beef className="w-3 h-3" /> Detalle de Porciones Procesamiento
           </p>
           <div className="grid grid-cols-1 gap-2">
             {pieza.porciones.map((p, i) => (
