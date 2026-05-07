@@ -1,5 +1,8 @@
 # CarneTracer - Meat Traceability & AI Analysis
 
+A full‑stack React application for meat traceability, waste control and production management, powered by Supabase and OpenRouter AI.
+
+
 Sistema profesional de trazabilidad, control de mermas y gestión de producción para la industria cárnica, potenciado por Inteligencia Artificial via **OpenRouter** y persistencia en tiempo real con **Supabase**.
 
 ## 🚀 Características Principales
