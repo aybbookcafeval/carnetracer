@@ -24,7 +24,9 @@ import {
   Share2,
   Printer,
   ArrowRightLeft,
-  ChefHat
+  ChefHat,
+  Brain,
+  Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
@@ -50,7 +52,7 @@ import { cn } from "./lib/utils";
 import { CameraCapture } from "./components/CameraCapture";
 import { TransferenciasView } from "./components/TransferenciasView";
 import { ProduccionView } from "./components/ProduccionView";
-import { validateWeightWithAI } from "./services/openrouterService";
+import { validateWeightWithAI, analyzeTraceability } from "./services/openrouterService";
 
 // Mock User
 const CURRENT_USER: Usuario = {
@@ -475,6 +477,35 @@ export default function App() {
       setRegistros([newRegistro, ...registros]);
       setPiezas(piezas.map(p => p.id === pieceId ? updatedPiece : p));
       setRegistrationModal({ open: false, piece: null });
+
+      // Análisis IA de trazabilidad completa solo para etapa PRODUCIDO
+      if (eventType === TipoEvento.PRODUCIDO) {
+        console.log("DEBUG: Generando análisis para PRODUCIDO", { pieceId, updatedPiece });
+        try {
+          // Obtener todos los registros de la pieza para análisis
+          const registrosPieza = registros.filter(r => r.piezaId === pieceId);
+          console.log("DEBUG: Registros de pieza:", registrosPieza.length);
+          // Generar análisis de trazabilidad con IA
+          const analisisTexto = await analyzeTraceability(updatedPiece, registrosPieza);
+          console.log("DEBUG: Análisis generado:", analisisTexto);
+          
+          // Actualizar solo el campo analisis_ia en Supabase
+          await supabaseService.updatePiezaOnly({
+            id: updatedPiece.id,
+            analisis_ia: analisisTexto
+          });
+          
+          // Actualizar estado local con el análisis
+          setPiezas(piezas.map(p => p.id === pieceId ? 
+            { ...p, analisis_ia: analisisTexto } : 
+            p
+          ));
+        } catch (error) {
+          console.error("Error en análisis IA de trazabilidad:", error);
+          // No bloquear el registro si falla el análisis
+          // Podríamos optar por intentar de nuevo o solo loguear el error
+        }
+      }
     } catch (error) {
       console.error("Error registering weight in Supabase:", error);
     }
@@ -1100,7 +1131,7 @@ export default function App() {
             onClose={() => setDetailsModal({ open: false, piece: null })}
           >
             <PieceDetails
-              pieza={detailsModal.piece}
+              pieza={piezas.find(p => p.id === detailsModal.piece?.id) || detailsModal.piece}
               registros={registros.filter(r => r.piezaId === detailsModal.piece?.id)}
               configCortes={configCortes}
             />
@@ -1542,6 +1573,43 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                 <span className="text-sm font-black text-brand">{p.cantidad} unid</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Análisis IA de Trazabilidad */}
+      {pieza.analisis_ia && (
+        <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
+          <div className="flex justify-between items-center mb-3">
+            <p className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+              <Brain className="w-3 h-3" /> Análisis IA de Trazabilidad
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(pieza.analisis_ia || '');
+                  alert('Análisis copiado al portapapeles');
+                } catch (e) {
+                  // Fallback para cuando falla clipboard API
+                  const textArea = document.createElement('textarea');
+                  textArea.value = pieza.analisis_ia || '';
+                  textArea.style.position = 'fixed';
+                  textArea.style.left = '-9999px';
+                  document.body.appendChild(textArea);
+                  textArea.select();
+                  document.execCommand('copy');
+                  document.body.removeChild(textArea);
+                  alert('Análisis copiado al portapapeles');
+                }
+              }}
+              className="p-1.5 hover:bg-blue-100 rounded-lg transition-colors"
+              title="Copiar análisis"
+            >
+              <Copy className="w-3.5 h-3.5 text-blue-400" />
+            </button>
+          </div>
+          <div className="bg-white px-4 py-3 rounded-xl border border-blue-100 shadow-sm">
+            <p className="text-sm text-blue-700 whitespace-pre-line">{pieza.analisis_ia}</p>
           </div>
         </div>
       )}

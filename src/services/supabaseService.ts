@@ -70,7 +70,8 @@ export const supabaseService = {
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       auditado: p.auditado,
-      comentarioAuditoria: p.comentario_auditoria
+      comentarioAuditoria: p.comentario_auditoria,
+      analisis_ia: p.analisis_ia
     }));
   },
 
@@ -112,6 +113,18 @@ export const supabaseService = {
         porciones: pieza.porciones,
         auditado: pieza.auditado,
         comentario_auditoria: pieza.comentarioAuditoria,
+        analisis_ia: pieza.analisis_ia,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pieza.id);
+    if (error) throw error;
+  },
+
+  async updatePiezaOnly(pieza: { id: string; analisis_ia?: string }) {
+    const { error } = await getClient()
+      .from('piezas')
+      .update({
+        analisis_ia: pieza.analisis_ia,
         updated_at: new Date().toISOString()
       })
       .eq('id', pieza.id);

@@ -41,6 +41,7 @@ export interface Pieza {
   updatedAt: string;
   auditado?: boolean;
   comentarioAuditoria?: string;
+  analisis_ia?: string; // Resumen general de análisis IA de trazabilidad
 }
 
 export interface ConfigCorte {

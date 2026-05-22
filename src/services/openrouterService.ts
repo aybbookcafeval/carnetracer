@@ -1,6 +1,8 @@
 // OpenRouter AI Service - replaces geminiService
 // Uses OpenRouter's chat completions API with vision-capable models
 
+import { Pieza, RegistroPeso } from '../types';
+
 const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY ||
   (typeof process !== 'undefined' && process.env?.VITE_OPENROUTER_API_KEY) || "";
 
@@ -176,5 +178,98 @@ export async function extractProductsFromImage(imageBase64: string): Promise<Ext
   } catch (error) {
     console.error("OpenRouter AI Extraction Error:", error);
     return [];
+  }
+}
+
+export async function analyzeTraceability(pieza: Pieza, registros: RegistroPeso[]): Promise<string> {
+  console.log("FUNCION analyzeTraceability llamada", { piezaId: pieza.id, estado: pieza.estado });
+  if (!apiKey || apiKey === "undefined" || apiKey === "" || apiKey === "null") {
+    console.warn("OPENROUTER_API_KEY not found. AI traceability analysis is disabled.");
+    return "Análisis IA no disponible: API key no configurada.";
+  }
+
+  try {
+    // Calcular suma de porciones
+    const totalPorcionesGramos = pieza.porciones?.reduce((sum, p) => sum + (p.pesoGramos * p.cantidad), 0) || 0;
+    const totalPorcionesKg = totalPorcionesGramos / 1000;
+
+    // Calcular diferencia entre descongelado y producido
+    const diferenciaDescongeladoProducido = pieza.pesoDescongelado > 0 && pieza.pesoProducido > 0 
+      ? Math.abs(pieza.pesoDescongelado - pieza.pesoProducido) / pieza.pesoDescongelado * 100
+      : 0;
+
+    // Ordenar registros por fecha
+    const sortedRegistros = [...registros].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+
+    const prompt = `Analiza la trazabilidad completa de esta pieza de carne con datos:
+
+Pieza ID: ${pieza.id}
+Tipo: ${pieza.tipo}
+Estado actual: ${pieza.estado}
+
+Historial de Pesos:
+- Congelado: ${pieza.pesoCongelado}kg
+- Descongelado: ${pieza.pesoDescongelado}kg  
+- Producido: ${pieza.pesoProducido}kg
+
+Métricas:
+- Merma descongelado: ${pieza.mermaDescongelado}%
+- Merma total: ${pieza.mermaTotal}%
+- Rendimiento: ${pieza.rendimiento}%
+
+Porciones: ${pieza.porciones?.map(p => `${p.pesoGramos}g: ${p.cantidad}unid`).join(', ') || 'Sin porciones'}
+Suma porciones: ${totalPorcionesKg.toFixed(2)}kg vs Producido: ${pieza.pesoProducido}kg
+Diferencia descongelado-producido: ${diferenciaDescongeladoProducido.toFixed(1)}%
+
+Analiza estas tres condiciones críticas:
+1. Progresión lógica: pesoProducido debe ser menor que pesoDescongelado y pesoCongelado
+2. Distancia descongelado-producido: diferencia porcentual (umbral 10% para alerta)
+3. Coherencia porciones: sumatorio vs peso producido (umbral 5% para alerta)
+
+responde CON TEXTO LIBRE, NO JSON. Máximo 3 líneas. Solo diagnóstico muy resumido en español.
+Ejemplos: 
+- "Trazabilidad coherente. Progresión normal."
+- "Alerta: peso descongelado muy cerca al producido (8%)."
+- "Inconsistencia: suma porciones excede producido."`;
+
+    const response = await fetch(OPENROUTER_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": window.location.origin,
+        "X-Title": "CarnesTrace - Meat Traceability System",
+      },
+      body: JSON.stringify({
+        model: VISION_MODEL,
+        messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
+    }
+
+    const data = await response.json();
+    let result = data.choices?.[0]?.message?.content || "";
+    
+    // Intentar parsear como JSON y extraer solo el diagnóstico
+    try {
+      const parsed = JSON.parse(result);
+      if (parsed.diagnostico) {
+        result = parsed.diagnostico;
+      } else if (parsed.diagnóstico) {
+        result = parsed.diagnóstico;
+      }
+    } catch {
+      // No es JSON, usar el texto tal cual
+    }
+    
+    console.log("DEBUG analyzeTraceability resultado:", result);
+    return result.trim();
+  } catch (error) {
+    console.error("OpenRouter AI Traceability Analysis Error:", error);
+    return "Error técnico en análisis de trazabilidad.";
   }
 }
