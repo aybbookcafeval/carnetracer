@@ -9,7 +9,7 @@ const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY ||
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Default vision model - can be changed to any vision-capable model on OpenRouter
-const VISION_MODEL = "google/gemini-2.0-flash-lite-001";
+const VISION_MODEL = "google/gemini-2.5-flash-lite";
 
 export interface ValidationResult {
   isValid: boolean;
@@ -194,7 +194,7 @@ export async function analyzeTraceability(pieza: Pieza, registros: RegistroPeso[
     const totalPorcionesKg = totalPorcionesGramos / 1000;
 
     // Calcular diferencia entre descongelado y producido
-    const diferenciaDescongeladoProducido = pieza.pesoDescongelado > 0 && pieza.pesoProducido > 0 
+    const diferenciaDescongeladoProducido = pieza.pesoDescongelado > 0 && pieza.pesoProducido > 0
       ? Math.abs(pieza.pesoDescongelado - pieza.pesoProducido) / pieza.pesoDescongelado * 100
       : 0;
 
@@ -253,7 +253,7 @@ Ejemplos:
 
     const data = await response.json();
     let result = data.choices?.[0]?.message?.content || "";
-    
+
     // Intentar parsear como JSON y extraer solo el diagnóstico
     try {
       const parsed = JSON.parse(result);
@@ -265,7 +265,7 @@ Ejemplos:
     } catch {
       // No es JSON, usar el texto tal cual
     }
-    
+
     console.log("DEBUG analyzeTraceability resultado:", result);
     return result.trim();
   } catch (error) {
