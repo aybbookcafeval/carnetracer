@@ -19,6 +19,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [sedeOrigen, setSedeOrigen] = useState<Sede>(Sede.ALMACEN_PRINCIPAL);
   const [sedeDestino, setSedeDestino] = useState<Sede>(Sede.COCINA);
   const [productos, setProductos] = useState<ProductoTransferencia[]>([]);
+  const [usuarioManual, setUsuarioManual] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
@@ -88,6 +89,9 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     if (sedeOrigen === sedeDestino) {
       errors.push("La sede de origen y destino no pueden ser la misma.");
     }
+    if (!usuarioManual.trim()) {
+      errors.push("Debe ingresar obligatoriamente el nombre del usuario que realiza la transferencia.");
+    }
 
     productos.forEach((p, i) => {
       if (!p.nombre.trim()) errors.push(`El producto #${i + 1} no tiene nombre.`);
@@ -130,7 +134,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
         sedeDestino,
         productos,
         fotoUrl,
-        usuario: user?.nombre || "Usuario",
+        usuario: usuarioManual.trim(),
         fecha: new Date().toISOString(),
         status: false
       };
@@ -141,6 +145,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       // Reset form
       setFoto(null);
       setProductos([]);
+      setUsuarioManual("");
       setIsCapturing(false);
       alert("Transferencia guardada exitosamente.");
     } catch (error) {
@@ -229,6 +234,20 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     {Object.values(Sede).filter(s => s !== Sede.ALMACEN_PRINCIPAL).map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario que realiza <span className="text-brand">*</span></label>
+                <input
+                  type="text"
+                  value={usuarioManual}
+                  onChange={(e) => setUsuarioManual(e.target.value)}
+                  placeholder="Ingrese nombre del operario"
+                  className={cn(
+                    "w-full p-3 bg-slate-50 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2 focus:ring-brand/20",
+                    !usuarioManual.trim() ? "border-brand" : "border-slate-200"
+                  )}
+                />
               </div>
 
               <div className="space-y-2">
