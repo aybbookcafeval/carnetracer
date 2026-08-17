@@ -8,6 +8,25 @@ import { CameraCapture } from "./CameraCapture";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
+const SEDE_STYLE: Record<Sede, { selectClass: string; optionClass: string }> = {
+  [Sede.ALMACEN_PRINCIPAL]: {
+    selectClass: "bg-slate-100 text-slate-700 border-slate-200",
+    optionClass: "bg-white text-slate-800"
+  },
+  [Sede.COCINA]: {
+    selectClass: "bg-emerald-50 text-emerald-800 border-emerald-200 focus:ring-emerald-200",
+    optionClass: "bg-emerald-50 text-emerald-800"
+  },
+  [Sede.PASTELERIA]: {
+    selectClass: "bg-amber-50 text-amber-800 border-amber-200 focus:ring-amber-200",
+    optionClass: "bg-amber-50 text-amber-800"
+  },
+  [Sede.BARRA]: {
+    selectClass: "bg-pink-50 text-pink-800 border-pink-200 focus:ring-pink-200",
+    optionClass: "bg-pink-50 text-pink-800"
+  }
+};
+
 export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,9 +248,23 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   <select
                     value={sedeDestino}
                     onChange={(e) => setSedeDestino(e.target.value as Sede)}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium"
+                    className={cn(
+                      "w-full p-3 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2",
+                      SEDE_STYLE[sedeDestino]?.selectClass || "bg-slate-50 border-slate-200"
+                    )}
                   >
-                    {Object.values(Sede).filter(s => s !== Sede.ALMACEN_PRINCIPAL).map(s => <option key={s} value={s}>{s}</option>)}
+                    {Object.values(Sede)
+                      .filter(s => s !== Sede.ALMACEN_PRINCIPAL)
+                      .map(s => (
+                        <option
+                          key={s}
+                          value={s}
+                          className={SEDE_STYLE[s]?.optionClass}
+                        >
+                          {s}
+                        </option>
+                      ))
+                    }
                   </select>
                 </div>
               </div>
