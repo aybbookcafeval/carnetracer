@@ -243,9 +243,24 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen</label>
-                  <div className="w-full p-3 bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium text-slate-500">
-                    {Sede.ALMACEN_PRINCIPAL}
-                  </div>
+                  <select
+                    value={sedeOrigen}
+                    onChange={(e) => setSedeOrigen(e.target.value as Sede)}
+                    className={cn(
+                      "w-full p-3 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2",
+                      SEDE_STYLE[sedeOrigen]?.selectClass || "bg-slate-50 border-slate-200"
+                    )}
+                  >
+                    {[Sede.ALMACEN_PRINCIPAL, Sede.PISO_1].map(s => (
+                      <option
+                        key={s}
+                        value={s}
+                        className={SEDE_STYLE[s]?.optionClass}
+                      >
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino</label>
