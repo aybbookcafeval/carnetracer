@@ -24,6 +24,10 @@ const SEDE_STYLE: Record<Sede, { selectClass: string; optionClass: string }> = {
   [Sede.BARRA]: {
     selectClass: "bg-pink-50 text-pink-800 border-pink-200 focus:ring-pink-200",
     optionClass: "bg-pink-50 text-pink-800"
+  },
+  [Sede.PISO_1]: {
+    selectClass: "bg-blue-50 text-blue-800 border-blue-200 focus:ring-blue-200",
+    optionClass: "bg-blue-50 text-blue-800"
   }
 };
 
