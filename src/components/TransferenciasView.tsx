@@ -245,7 +245,15 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Origen</label>
                   <select
                     value={sedeOrigen}
-                    onChange={(e) => setSedeOrigen(e.target.value as Sede)}
+                    onChange={(e) => {
+                      const newOrigen = e.target.value as Sede;
+                      setSedeOrigen(newOrigen);
+                      if (newOrigen === Sede.PISO_1) {
+                        setSedeDestino(Sede.ALMACEN_PRINCIPAL);
+                      } else if (newOrigen === Sede.ALMACEN_PRINCIPAL && sedeDestino === Sede.ALMACEN_PRINCIPAL) {
+                        setSedeDestino(Sede.COCINA);
+                      }
+                    }}
                     className={cn(
                       "w-full p-3 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2",
                       SEDE_STYLE[sedeOrigen]?.selectClass || "bg-slate-50 border-slate-200"
@@ -273,7 +281,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     )}
                   >
                     {Object.values(Sede)
-                      .filter(s => s !== Sede.ALMACEN_PRINCIPAL)
+                      .filter(s => s !== sedeOrigen)
                       .map(s => (
                         <option
                           key={s}
