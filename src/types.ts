@@ -89,6 +89,7 @@ export enum Sede {
   PASTELERIA = "Pastelería",
   BARRA = "Barra",
   PISO_1 = "Piso 1",
+  PANADERIA = "Panadería",
 }
 
 export interface Produccion {

@@ -28,7 +28,11 @@ const SEDE_STYLE: Record<Sede, { selectClass: string; optionClass: string }> = {
   [Sede.PISO_1]: {
     selectClass: "bg-blue-50 text-blue-800 border-blue-200 focus:ring-blue-200",
     optionClass: "bg-blue-50 text-blue-800"
-  }
+  },
+  [Sede.PANADERIA]: {
+    selectClass: "bg-mauve-200 text-mauve-700 border-mauve-200 focus:ring-mauve-700",
+    optionClass: "bg-mauve-200 text-mauve-700"
+  },
 };
 
 export function TransferenciasView({ user }: { user: Usuario | null }) {
@@ -59,7 +63,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   useEffect(() => {
     loadTransferencias();
 
-    const handleOpenNueva = () => setIsCapturing(true);
+    const handleOpenNueva = () => {
+      setSedeOrigen(Sede.ALMACEN_PRINCIPAL);
+      setSedeDestino(Sede.COCINA);
+      setIsCapturing(true);
+    };
     document.addEventListener('open-nueva-transferencia', handleOpenNueva);
     return () => document.removeEventListener('open-nueva-transferencia', handleOpenNueva);
   }, []);
@@ -169,6 +177,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setFoto(null);
       setProductos([]);
       setUsuarioManual("");
+      setSedeOrigen(Sede.ALMACEN_PRINCIPAL);
+      setSedeDestino(Sede.COCINA);
       setIsCapturing(false);
       alert("Transferencia guardada exitosamente.");
     } catch (error) {
@@ -248,10 +258,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     onChange={(e) => {
                       const newOrigen = e.target.value as Sede;
                       setSedeOrigen(newOrigen);
-                      if (newOrigen === Sede.PISO_1) {
-                        setSedeDestino(Sede.ALMACEN_PRINCIPAL);
-                      } else if (newOrigen === Sede.ALMACEN_PRINCIPAL && sedeDestino === Sede.ALMACEN_PRINCIPAL) {
-                        setSedeDestino(Sede.COCINA);
+                      if (newOrigen === sedeDestino) {
+                        const available = Object.values(Sede).filter(s => s !== newOrigen);
+                        if (available.length > 0) {
+                          setSedeDestino(available[0]);
+                        }
                       }
                     }}
                     className={cn(
@@ -259,7 +270,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                       SEDE_STYLE[sedeOrigen]?.selectClass || "bg-slate-50 border-slate-200"
                     )}
                   >
-                    {[Sede.ALMACEN_PRINCIPAL, Sede.PISO_1].map(s => (
+                    {Object.values(Sede).map(s => (
                       <option
                         key={s}
                         value={s}
