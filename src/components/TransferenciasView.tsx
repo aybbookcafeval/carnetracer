@@ -57,6 +57,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [filterEndDate, setFilterEndDate] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [selectedTransfer, setSelectedTransfer] = useState<Transferencia | null>(null);
+  const [detailFotoUrl, setDetailFotoUrl] = useState<string | null>(null);
+  const [loadingFoto, setLoadingFoto] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -88,10 +90,14 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     setIsExtracting(true);
     try {
       const extracted = await extractProductsFromImage(imageSrc);
-      setProductos(extracted);
+      if (extracted && extracted.length > 0) {
+        setProductos(extracted);
+      } else {
+        alert("La imagen quedó adjunta. La IA no pudo detectar productos de forma automática o el formato no fue claro. Puede añadirlos manualmente con el botón '+ Agregar Producto'.");
+      }
     } catch (error) {
       console.error("Error extracting products:", error);
-      alert("Error al extraer productos de la imagen.");
+      alert("Hubo un inconveniente al contactar con la IA. La imagen quedó guardada y puede agregar los productos manualmente.");
     } finally {
       setIsExtracting(false);
     }
@@ -156,7 +162,12 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       let fotoUrl = undefined;
       if (foto) {
         const fileName = `TRANSF-${Date.now()}`;
-        fotoUrl = await supabaseService.uploadImage(foto, fileName);
+        try {
+          fotoUrl = await supabaseService.uploadImage(foto, fileName);
+        } catch (uploadErr) {
+          console.warn("Aviso al subir imagen, usando respaldo directo:", uploadErr);
+          fotoUrl = foto;
+        }
       }
 
       const newTransferencia: Transferencia = {
@@ -181,9 +192,9 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setSedeDestino(Sede.COCINA);
       setIsCapturing(false);
       alert("Transferencia guardada exitosamente.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving transferencia:", error);
-      alert("Error al guardar la transferencia.");
+      alert(`Error al guardar la transferencia: ${error?.message || "Ocurrió un error inesperado"}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -522,7 +533,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     </tr>
                   ) : (
                     paginatedTransferencias.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => setSelectedTransfer(t)}>
+                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => { setSelectedTransfer(t); setDetailFotoUrl(null); setLoadingFoto(true); supabaseService.getTransferenciaFoto(t.id).then(url => { setDetailFotoUrl(url); setLoadingFoto(false); }).catch(() => setLoadingFoto(false)); }}>
                         <td className="p-4 whitespace-nowrap">
                           <div className="font-medium text-slate-900">{format(new Date(t.fecha), "dd MMM yyyy", { locale: es })}</div>
                           <div className="text-xs text-slate-500">{format(new Date(t.fecha), "HH:mm")}</div>
@@ -625,7 +636,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Detalles de Transferencia</h2>
-              <button onClick={() => setSelectedTransfer(null)} className="text-slate-400 hover:text-slate-600">Cerrar</button>
+              <button onClick={() => { setSelectedTransfer(null); setDetailFotoUrl(null); }} className="text-slate-400 hover:text-slate-600">Cerrar</button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -645,10 +656,16 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   ))}
                 </div>
               </div>
-              {selectedTransfer.fotoUrl && (
+              {loadingFoto && (
                 <div>
                   <p className="text-slate-500 font-bold uppercase text-xs mb-2">Evidencia</p>
-                  <img src={selectedTransfer.fotoUrl} alt="Evidencia" className="w-full rounded-lg border border-slate-200" />
+                  <p className="text-sm text-slate-400 animate-pulse">Cargando imagen...</p>
+                </div>
+              )}
+              {!loadingFoto && detailFotoUrl && (
+                <div>
+                  <p className="text-slate-500 font-bold uppercase text-xs mb-2">Evidencia</p>
+                  <img src={detailFotoUrl} alt="Evidencia" className="w-full rounded-lg border border-slate-200" />
                 </div>
               )}
             </div>

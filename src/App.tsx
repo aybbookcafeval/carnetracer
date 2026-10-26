@@ -26,7 +26,9 @@ import {
   ArrowRightLeft,
   ChefHat,
   Brain,
-  Copy
+  Copy,
+  Pencil,
+  RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { format } from "date-fns";
@@ -81,6 +83,7 @@ export default function App() {
   const [auditComment, setAuditComment] = useState("");
   const [showAuditedOnly, setShowAuditedOnly] = useState(false);
   const [registrationModal, setRegistrationModal] = useState<{ open: boolean; piece: Pieza | null }>({ open: false, piece: null });
+  const [editingStage, setEditingStage] = useState<{ open: boolean; piece: Pieza | null; registro: RegistroPeso | null }>({ open: false, piece: null, registro: null });
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   // Filters State
@@ -362,6 +365,77 @@ export default function App() {
     return { pesoCongelado, pesoDescongelado, pesoProducido, mermaDescongelado, mermaTotal, merma, rendimiento };
   };
 
+  const recalculatePieceState = (piece: Pieza, pieceRegistros: RegistroPeso[]): Pieza => {
+    const congeladoReg = pieceRegistros.find(r => r.tipoEvento === TipoEvento.CONGELADO);
+    const descongeladoReg = pieceRegistros.find(r => r.tipoEvento === TipoEvento.DESCONGELADO);
+    const producidoReg = pieceRegistros.find(r => r.tipoEvento === TipoEvento.PRODUCIDO);
+
+    const pesoCongelado = congeladoReg ? congeladoReg.peso : 0;
+    const pesoDescongelado = descongeladoReg ? descongeladoReg.peso : 0;
+    const pesoProducido = producidoReg ? producidoReg.peso : 0;
+
+    let mermaDescongelado = 0;
+    if (pesoCongelado > 0 && pesoDescongelado > 0) {
+      mermaDescongelado = ((pesoCongelado - pesoDescongelado) / pesoCongelado) * 100;
+    }
+
+    let mermaTotal = 0;
+    if (pesoCongelado > 0 && pesoProducido > 0) {
+      const diff = pesoCongelado - pesoProducido;
+      if (diff < 0 && Math.abs(diff) <= pesoCongelado * 0.05) {
+        mermaTotal = 0;
+      } else {
+        mermaTotal = (diff / pesoCongelado) * 100;
+      }
+    }
+
+    let merma = 0;
+    if (pesoCongelado > 0) {
+      const pesoActual = pesoProducido > 0 ? pesoProducido : (pesoDescongelado > 0 ? pesoDescongelado : pesoCongelado);
+      const diff = pesoCongelado - pesoActual;
+      if (diff < 0 && Math.abs(diff) <= pesoCongelado * 0.05) {
+        merma = 0;
+      } else {
+        merma = (diff / pesoCongelado) * 100;
+      }
+    }
+
+    const rendimiento = pesoDescongelado > 0 && pesoProducido > 0
+      ? (pesoProducido / pesoDescongelado) * 100
+      : 0;
+
+    let estado: EstadoPieza;
+    if (piece.estado === EstadoPieza.CARGADO_EN_SISTEMA && producidoReg) {
+      estado = EstadoPieza.CARGADO_EN_SISTEMA;
+    } else if (producidoReg) {
+      estado = EstadoPieza.PRODUCIDA;
+    } else if (descongeladoReg) {
+      estado = EstadoPieza.DESCONGELADA;
+    } else if (congeladoReg) {
+      estado = EstadoPieza.CONGELADA;
+    } else {
+      estado = EstadoPieza.CREADA;
+    }
+
+    const porciones = producidoReg ? piece.porciones : [];
+    const fotoMerma = producidoReg?.fotoMerma || descongeladoReg?.fotoMerma || undefined;
+
+    return {
+      ...piece,
+      pesoCongelado,
+      pesoDescongelado,
+      pesoProducido,
+      mermaDescongelado,
+      mermaTotal,
+      merma,
+      rendimiento,
+      estado,
+      porciones,
+      fotoMerma,
+      updatedAt: new Date().toISOString()
+    };
+  };
+
   // Actions
   const addPiece = async (tipo: string) => {
     const newPiece: Pieza = {
@@ -467,7 +541,8 @@ export default function App() {
         ...metrics,
         estado: nextEstado,
         fotoMerma: publicUrlMerma || piece.fotoMerma,
-        porciones: porciones || piece.porciones
+        porciones: porciones || piece.porciones,
+        updatedAt: new Date().toISOString()
       };
       await Promise.all([
         supabaseService.createRegistro(newRegistro),
@@ -528,6 +603,114 @@ export default function App() {
     } catch (error) {
       console.error("Error marking piece as loaded:", error);
       alert("Error al marcar como cargado en sistema.");
+    }
+  };
+
+  const handleEditStage = async (piece: Pieza, registro: RegistroPeso, newPeso: number, newFecha: string, newPorciones?: Porcion[]) => {
+    if (user?.rol !== RolUsuario.ADMIN) {
+      alert("Solo el administrador puede editar etapas.");
+      return;
+    }
+
+    try {
+      await supabaseService.updateRegistro(registro.id, {
+        peso: newPeso,
+        fecha: newFecha,
+      });
+
+      const updatedRegistros = registros.map(r => r.id === registro.id ? { ...r, peso: newPeso, fecha: newFecha } : r);
+      setRegistros(updatedRegistros);
+
+      const pieceRegs = updatedRegistros.filter(r => r.piezaId === piece.id);
+      let updatedPiece = recalculatePieceState(piece, pieceRegs);
+      if (registro.tipoEvento === TipoEvento.PRODUCIDO && newPorciones !== undefined) {
+        updatedPiece = {
+          ...updatedPiece,
+          porciones: newPorciones
+        };
+      }
+
+      await supabaseService.updatePieza(updatedPiece);
+      setPiezas(piezas.map(p => p.id === piece.id ? updatedPiece : p));
+      setDetailsModal(prev => prev.open && prev.piece?.id === piece.id ? { ...prev, piece: updatedPiece } : prev);
+      setEditingStage({ open: false, piece: null, registro: null });
+    } catch (error) {
+      console.error("Error updating stage:", error);
+      alert("Error al actualizar la etapa.");
+    }
+  };
+
+  const handleDeleteStage = async (piece: Pieza, registro: RegistroPeso) => {
+    if (user?.rol !== RolUsuario.ADMIN) {
+      alert("Solo el administrador puede eliminar etapas.");
+      return;
+    }
+
+    if (!confirm(`¿Estás seguro de eliminar la etapa "${registro.tipoEvento}"? Los pesos e indicadores se recalcularán y el estado de la pieza retrocederá según corresponda.`)) {
+      return;
+    }
+
+    try {
+      await supabaseService.deleteRegistro(registro.id);
+
+      const updatedRegistros = registros.filter(r => r.id !== registro.id);
+      setRegistros(updatedRegistros);
+
+      const pieceRegs = updatedRegistros.filter(r => r.piezaId === piece.id);
+      const updatedPiece = recalculatePieceState(piece, pieceRegs);
+
+      await supabaseService.updatePieza(updatedPiece);
+      setPiezas(piezas.map(p => p.id === piece.id ? updatedPiece : p));
+      setDetailsModal(prev => prev.open && prev.piece?.id === piece.id ? { ...prev, piece: updatedPiece } : prev);
+    } catch (error) {
+      console.error("Error deleting stage:", error);
+      alert("Error al eliminar la etapa.");
+    }
+  };
+
+  const handleRevertLoaded = async (piece: Pieza) => {
+    if (user?.rol !== RolUsuario.ADMIN) {
+      alert("Solo el administrador puede revertir etapas.");
+      return;
+    }
+
+    if (!confirm("¿Deseas revertir la etapa 'Cargado en Sistema' y devolver la pieza a estado 'PRODUCIDA'?")) {
+      return;
+    }
+
+    try {
+      const updatedPiece: Pieza = {
+        ...piece,
+        estado: EstadoPieza.PRODUCIDA,
+        updatedAt: new Date().toISOString()
+      };
+      await supabaseService.updatePieza(updatedPiece);
+      setPiezas(piezas.map(p => p.id === piece.id ? updatedPiece : p));
+      setDetailsModal(prev => prev.open && prev.piece?.id === piece.id ? { ...prev, piece: updatedPiece } : prev);
+    } catch (error) {
+      console.error("Error reverting stage:", error);
+      alert("Error al revertir la etapa.");
+    }
+  };
+
+  const handleDeletePiece = async (piece: Pieza) => {
+    if (user?.rol !== RolUsuario.ADMIN) {
+      alert("Solo el administrador puede eliminar piezas.");
+      return;
+    }
+
+    if (!confirm(`¿Estás seguro de eliminar completamente la pieza "${piece.tipo}" (${piece.id}) y todo su historial de trazabilidad? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      await supabaseService.deletePieza(piece.id);
+      setPiezas(piezas.filter(p => p.id !== piece.id));
+      setRegistros(registros.filter(r => r.piezaId !== piece.id));
+      setDetailsModal({ open: false, piece: null });
+    } catch (error) {
+      console.error("Error deleting piece:", error);
+      alert("Error al eliminar la pieza.");
     }
   };
 
@@ -969,7 +1152,9 @@ export default function App() {
                       <PieceCard
                         key={p.id}
                         pieza={p}
+                        registros={registros}
                         configCortes={configCortes}
+                        isAdmin={user?.rol === RolUsuario.ADMIN}
                         onAction={() => setRegistrationModal({ open: true, piece: p })}
                         onDetails={() => setDetailsModal({ open: true, piece: p })}
                         onMarkAsLoaded={markAsLoaded}
@@ -1134,6 +1319,27 @@ export default function App() {
               pieza={piezas.find(p => p.id === detailsModal.piece?.id) || detailsModal.piece}
               registros={registros.filter(r => r.piezaId === detailsModal.piece?.id)}
               configCortes={configCortes}
+              isAdmin={user?.rol === RolUsuario.ADMIN}
+              onEditStage={(reg) => setEditingStage({ open: true, piece: detailsModal.piece, registro: reg })}
+              onDeleteStage={(reg) => handleDeleteStage(detailsModal.piece!, reg)}
+              onRevertLoaded={() => handleRevertLoaded(detailsModal.piece!)}
+              onDeletePiece={() => handleDeletePiece(detailsModal.piece!)}
+            />
+          </Modal>
+        )}
+
+        {editingStage.open && editingStage.piece && editingStage.registro && (
+          <Modal
+            title={`Editar Etapa: ${editingStage.registro.tipoEvento}`}
+            onClose={() => setEditingStage({ open: false, piece: null, registro: null })}
+          >
+            <EditStageModal
+              piece={editingStage.piece}
+              registro={editingStage.registro}
+              onClose={() => setEditingStage({ open: false, piece: null, registro: null })}
+              onSave={async (peso, fecha, porciones) => {
+                await handleEditStage(editingStage.piece!, editingStage.registro!, peso, fecha, porciones);
+              }}
             />
           </Modal>
         )}
@@ -1438,11 +1644,39 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
   );
 }
 
-function PieceCard({ pieza, configCortes, onAction, onDetails, onMarkAsLoaded }: { pieza: Pieza; configCortes: ConfigCorte[]; onAction: () => void; onDetails?: () => void; onMarkAsLoaded?: (id: string) => void }) {
+function PieceCard({ pieza, registros = [], configCortes, isAdmin = false, onAction, onDetails, onMarkAsLoaded }: { pieza: Pieza; registros?: RegistroPeso[]; configCortes: ConfigCorte[]; isAdmin?: boolean; onAction: () => void; onDetails?: () => void; onMarkAsLoaded?: (id: string) => void }) {
   const nextEstado = NEXT_STATE[pieza.estado];
   const config = configCortes.find(c => c.nombre === pieza.tipo);
   const mDescongMax = config?.mermaDescongeladoMax ?? 8;
   const mTotalMax = config?.mermaTotalMax ?? 22;
+
+  const lastStageDate = useMemo(() => {
+    const pieceRegs = registros.filter(r => r.piezaId === pieza.id);
+    if (pieceRegs.length > 0) {
+      const sorted = [...pieceRegs].sort(
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+      );
+      const latestRegDate = sorted[0].fecha;
+      if (pieza.estado === EstadoPieza.CARGADO_EN_SISTEMA && pieza.updatedAt) {
+        if (new Date(pieza.updatedAt).getTime() > new Date(latestRegDate).getTime()) {
+          return pieza.updatedAt;
+        }
+      }
+      return latestRegDate;
+    }
+    return pieza.updatedAt || pieza.createdAt;
+  }, [registros, pieza.id, pieza.estado, pieza.updatedAt, pieza.createdAt]);
+
+  const formattedLastStageDate = useMemo(() => {
+    if (!lastStageDate) return null;
+    try {
+      const d = new Date(lastStageDate);
+      if (isNaN(d.getTime())) return null;
+      return format(d, "dd/MM/yyyy HH:mm", { locale: es });
+    } catch {
+      return null;
+    }
+  }, [lastStageDate]);
 
   return (
     <motion.div
@@ -1452,13 +1686,46 @@ function PieceCard({ pieza, configCortes, onAction, onDetails, onMarkAsLoaded }:
       className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
       onClick={onDetails}
     >
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <h3 className="font-bold text-slate-900 text-lg group-hover:text-brand transition-colors">{pieza.tipo}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-slate-900 text-lg group-hover:text-brand transition-colors">{pieza.tipo}</h3>
+            {isAdmin && (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200">
+                Admin
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-400 font-mono">{pieza.id}</p>
         </div>
-        <span className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase border", ESTADO_COLORS[pieza.estado])}>
-          {pieza.estado}
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase border", ESTADO_COLORS[pieza.estado])}>
+            {pieza.estado}
+          </span>
+          {isAdmin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDetails?.();
+              }}
+              className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 hover:underline"
+              title="Gestionar y editar etapas como administrador"
+            >
+              <Pencil className="w-3 h-3" />
+              Editar etapas
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div
+        className="flex items-center gap-1.5 text-xs text-slate-500 mb-4 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100"
+        title={formattedLastStageDate ? `Fecha de la última etapa: ${formattedLastStageDate}` : undefined}
+      >
+        <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+        <span className="text-[11px] text-slate-500">Última etapa:</span>
+        <span className="text-[11px] font-semibold text-slate-700">
+          {formattedLastStageDate || "--"}
         </span>
       </div>
 
@@ -1508,7 +1775,25 @@ function PieceCard({ pieza, configCortes, onAction, onDetails, onMarkAsLoaded }:
   );
 }
 
-function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; registros: RegistroPeso[]; configCortes: ConfigCorte[] }) {
+function PieceDetails({
+  pieza,
+  registros,
+  configCortes,
+  isAdmin = false,
+  onEditStage,
+  onDeleteStage,
+  onRevertLoaded,
+  onDeletePiece
+}: {
+  pieza: Pieza;
+  registros: RegistroPeso[];
+  configCortes: ConfigCorte[];
+  isAdmin?: boolean;
+  onEditStage?: (registro: RegistroPeso) => void;
+  onDeleteStage?: (registro: RegistroPeso) => void;
+  onRevertLoaded?: () => void;
+  onDeletePiece?: () => void;
+}) {
   const sortedRegistros = [...registros].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
   const config = configCortes.find(c => c.nombre === pieza.tipo);
   const mDescongMax = config?.mermaDescongeladoMax ?? 8;
@@ -1516,6 +1801,30 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
 
   return (
     <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+      {/* Admin Banner */}
+      {isAdmin && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-amber-800 font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+              🛡️ Modo Administrador
+            </span>
+            <span className="text-xs text-amber-900">
+              Tienes permisos para editar y eliminar cualquier etapa de esta pieza.
+            </span>
+          </div>
+          {onDeletePiece && (
+            <button
+              type="button"
+              onClick={onDeletePiece}
+              className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors"
+              title="Eliminar pieza completa"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Eliminar Pieza
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Summary Metrics */}
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-slate-900">Resumen</h3>
@@ -1590,7 +1899,6 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                   await navigator.clipboard.writeText(pieza.analisis_ia || '');
                   alert('Análisis copiado al portapapeles');
                 } catch (e) {
-                  // Fallback para cuando falla clipboard API
                   const textArea = document.createElement('textarea');
                   textArea.value = pieza.analisis_ia || '';
                   textArea.style.position = 'fixed';
@@ -1616,7 +1924,7 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
 
       {/* Timeline */}
       <div className="space-y-4 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-        {sortedRegistros.length === 0 && (
+        {sortedRegistros.length === 0 && pieza.estado !== EstadoPieza.CARGADO_EN_SISTEMA && (
           <p className="text-center text-slate-400 py-8 text-sm italic">No hay registros de peso aún.</p>
         )}
         {sortedRegistros.map((reg, idx) => (
@@ -1709,11 +2017,252 @@ function PieceDetails({ pieza, registros, configCortes }: { pieza: Pieza; regist
                   </div>
                 </div>
               )}
+
+              {/* Admin Actions for this stage */}
+              {isAdmin && (
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onEditStage?.(reg)}
+                    className="text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar etapa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteStage?.(reg)}
+                    className="text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Eliminar etapa
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
+
+        {/* Cargado en Sistema stage item */}
+        {pieza.estado === EstadoPieza.CARGADO_EN_SISTEMA && (
+          <div className="relative pl-10">
+            <div className="absolute left-2 top-1 w-4 h-4 rounded-full border-2 border-white shadow-sm z-10 bg-purple-600" />
+            <div className="bg-white border border-purple-100 rounded-xl p-4 shadow-sm">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-bold text-purple-600 uppercase tracking-wider">CARGADO EN SISTEMA</p>
+                  <p className="text-xs text-slate-500 mt-0.5">La pieza ha finalizado su ciclo y fue marcada como cargada en sistema.</p>
+                </div>
+                <span className="text-[10px] text-slate-400">
+                  {pieza.updatedAt ? format(new Date(pieza.updatedAt), "d MMM, HH:mm", { locale: es }) : "--"}
+                </span>
+              </div>
+              {isAdmin && onRevertLoaded && (
+                <div className="mt-3 pt-3 border-t border-purple-50 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={onRevertLoaded}
+                    className="text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Revertir a PRODUCIDA
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function EditStageModal({
+  piece,
+  registro,
+  onClose,
+  onSave
+}: {
+  piece: Pieza;
+  registro: RegistroPeso;
+  onClose: () => void;
+  onSave: (peso: number, fecha: string, porciones?: Porcion[]) => Promise<void>;
+}) {
+  const [peso, setPeso] = useState(registro.peso ? registro.peso.toString() : "");
+  const [fecha, setFecha] = useState(() => {
+    try {
+      const d = new Date(registro.fecha);
+      if (isNaN(d.getTime())) return "";
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch {
+      return "";
+    }
+  });
+  const [porciones, setPorciones] = useState<Porcion[]>(() => piece.porciones || []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const numPeso = parseFloat(peso);
+    if (isNaN(numPeso) || numPeso <= 0) {
+      setError("El peso debe ser un número mayor a 0");
+      return;
+    }
+    if (!fecha) {
+      setError("Debes indicar una fecha y hora válida");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      const isoDate = new Date(fecha).toISOString();
+      await onSave(
+        numPeso,
+        isoDate,
+        registro.tipoEvento === TipoEvento.PRODUCIDO ? porciones : undefined
+      );
+    } catch (err: any) {
+      setError(err?.message || "Error al guardar los cambios");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] text-slate-400 font-bold uppercase">Pieza</p>
+          <p className="font-bold text-slate-900">{piece.tipo} <span className="font-mono text-xs text-slate-400">({piece.id})</span></p>
+        </div>
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full uppercase bg-blue-100 text-blue-800 border border-blue-200">
+          {registro.tipoEvento}
+        </span>
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">
+          Peso Registrado (kg)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0.01"
+          value={peso}
+          onChange={(e) => setPeso(e.target.value)}
+          placeholder="0.00"
+          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-lg font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand"
+          required
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">
+          Fecha y Hora de la Etapa
+        </label>
+        <input
+          type="datetime-local"
+          value={fecha}
+          onChange={(e) => setFecha(e.target.value)}
+          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand"
+          required
+        />
+      </div>
+
+      {registro.tipoEvento === TipoEvento.PRODUCIDO && (
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Beef className="w-3.5 h-3.5 text-slate-400" /> Porciones Procesadas
+            </label>
+            <button
+              type="button"
+              onClick={() => setPorciones([...porciones, { pesoGramos: 250, cantidad: 1 }])}
+              className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Agregar porción
+            </button>
+          </div>
+
+          {porciones.length === 0 ? (
+            <p className="text-xs text-slate-400 italic">No hay porciones configuradas para esta etapa.</p>
+          ) : (
+            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+              {porciones.map((p, idx) => (
+                <div key={idx} className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                  <div className="flex-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Gramos</span>
+                    <input
+                      type="number"
+                      value={p.pesoGramos || ""}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setPorciones(porciones.map((item, i) => i === idx ? { ...item, pesoGramos: val } : item));
+                      }}
+                      className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Cantidad</span>
+                    <input
+                      type="number"
+                      value={p.cantidad || ""}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setPorciones(porciones.map((item, i) => i === idx ? { ...item, cantidad: val } : item));
+                      }}
+                      className="w-full p-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPorciones(porciones.filter((_, i) => i !== idx))}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg mt-3 transition-colors"
+                    title="Eliminar porción"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="px-4 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+        >
+          Cancelar
+        </button>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="px-5 py-2.5 bg-brand hover:bg-brand/90 text-white text-sm font-bold rounded-xl flex items-center gap-2 transition-all shadow-md active:scale-95 disabled:opacity-50"
+        >
+          {isSubmitting ? (
+            <span>Guardando...</span>
+          ) : (
+            <>
+              <Save className="w-4 h-4" /> Guardar Cambios
+            </>
+          )}
+        </button>
+      </div>
+    </form>
   );
 }
 

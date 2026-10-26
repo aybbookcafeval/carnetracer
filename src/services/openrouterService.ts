@@ -8,8 +8,13 @@ const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY ||
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Default vision model - can be changed to any vision-capable model on OpenRouter
-const VISION_MODEL = "google/gemini-2.5-flash-lite";
+// Primary vision model and fallback models for rate limits
+const PRIMARY_VISION_MODEL = (import.meta.env.VITE_OPENROUTER_VISION_MODEL as string) || "google/gemini-2.5-flash";
+const FALLBACK_VISION_MODELS = [
+  PRIMARY_VISION_MODEL,
+  "google/gemini-3.1-flash-lite",
+  "google/gemini-2.5-flash-lite",
+];
 
 export interface ValidationResult {
   isValid: boolean;
@@ -18,29 +23,60 @@ export interface ValidationResult {
   reason: string;
 }
 
-async function callOpenRouter(messages: any[], model: string = VISION_MODEL): Promise<string> {
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": window.location.origin,
-      "X-Title": "CarnesTrace - Meat Traceability System",
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      response_format: { type: "json_object" },
-    }),
-  });
+async function callOpenRouter(messages: any[], preferredModel?: string, jsonResponse: boolean = true): Promise<string> {
+  const modelsToTry = preferredModel
+    ? [preferredModel, ...FALLBACK_VISION_MODELS.filter(m => m !== preferredModel)]
+    : FALLBACK_VISION_MODELS;
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
+  let lastError: any = null;
+
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const currentModel = modelsToTry[i];
+    try {
+      const body: any = {
+        model: currentModel,
+        messages,
+      };
+      if (jsonResponse) {
+        body.response_format = { type: "json_object" };
+      }
+
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": typeof window !== "undefined" ? window.location.origin : "http://localhost:3000",
+          "X-Title": "CarnesTrace - Meat Traceability System",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.warn(`OpenRouter model '${currentModel}' returned status ${response.status}:`, errorBody);
+        lastError = new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
+
+        // If rate limited (429) or upstream server error (5xx), try next fallback model
+        if ((response.status === 429 || response.status >= 500) && i < modelsToTry.length - 1) {
+          console.info(`Switching to fallback vision model: ${modelsToTry[i + 1]}`);
+          continue;
+        }
+        throw lastError;
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || (jsonResponse ? "{}" : "");
+    } catch (err: any) {
+      lastError = err;
+      if (i < modelsToTry.length - 1) {
+        console.info(`Attempt with model '${currentModel}' failed. Retrying with fallback model '${modelsToTry[i + 1]}'`);
+        continue;
+      }
+    }
   }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "{}";
+  throw lastError || new Error("Todos los modelos de IA de OpenRouter fallaron o están temporalmente saturados.");
 }
 
 export async function validateWeightWithAI(imageBase64: string, expectedWeight: number): Promise<ValidationResult> {
@@ -232,27 +268,11 @@ Ejemplos:
 - "Alerta: peso descongelado muy cerca al producido (8%)."
 - "Inconsistencia: suma porciones excede producido."`;
 
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": window.location.origin,
-        "X-Title": "CarnesTrace - Meat Traceability System",
-      },
-      body: JSON.stringify({
-        model: VISION_MODEL,
-        messages: [{ role: "user", content: [{ type: "text", text: prompt }] }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(`OpenRouter API error (${response.status}): ${errorBody}`);
-    }
-
-    const data = await response.json();
-    let result = data.choices?.[0]?.message?.content || "";
+    let result = await callOpenRouter(
+      [{ role: "user", content: [{ type: "text", text: prompt }] }],
+      undefined,
+      false
+    );
 
     // Intentar parsear como JSON y extraer solo el diagnóstico
     try {

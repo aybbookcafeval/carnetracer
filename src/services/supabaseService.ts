@@ -7,6 +7,63 @@ const getClient = () => {
   return client;
 };
 
+// Mapeo entre estados del frontend y enums de la base de datos Supabase (estado_pieza)
+const mapDbEstadoToFrontend = (dbEstado: string): EstadoPieza => {
+  switch (dbEstado) {
+    case 'DESCONGELANDO':
+      return EstadoPieza.CONGELADA;
+    case 'PROCESANDO':
+      return EstadoPieza.DESCONGELADA;
+    case 'FINALIZADA':
+      return EstadoPieza.PRODUCIDA;
+    case 'CREADA':
+    default:
+      return EstadoPieza.CREADA;
+  }
+};
+
+const mapFrontendEstadoToDb = (estado?: EstadoPieza): string => {
+  switch (estado) {
+    case EstadoPieza.CONGELADA:
+      return 'DESCONGELANDO';
+    case EstadoPieza.DESCONGELADA:
+      return 'PROCESANDO';
+    case EstadoPieza.PRODUCIDA:
+    case EstadoPieza.CARGADO_EN_SISTEMA:
+      return 'FINALIZADA';
+    case EstadoPieza.CREADA:
+    default:
+      return 'CREADA';
+  }
+};
+
+// Mapeo entre eventos del frontend y enums de la base de datos Supabase (tipo_evento_peso)
+const mapDbEventoToFrontend = (dbEvento: string): TipoEvento => {
+  switch (dbEvento) {
+    case 'PESO_CONGELADO':
+      return TipoEvento.CONGELADO;
+    case 'PESO_DESCONGELADO':
+      return TipoEvento.DESCONGELADO;
+    case 'PESO_PRODUCIDO':
+      return TipoEvento.PRODUCIDO;
+    default:
+      return TipoEvento.CONGELADO;
+  }
+};
+
+const mapFrontendEventoToDb = (evento?: TipoEvento): string => {
+  switch (evento) {
+    case TipoEvento.CONGELADO:
+      return 'PESO_CONGELADO';
+    case TipoEvento.DESCONGELADO:
+      return 'PESO_DESCONGELADO';
+    case TipoEvento.PRODUCIDO:
+      return 'PESO_PRODUCIDO';
+    default:
+      return 'PESO_CONGELADO';
+  }
+};
+
 export const supabaseService = {
   // Config Cortes
   async fetchConfigCortes(): Promise<ConfigCorte[]> {
@@ -57,7 +114,7 @@ export const supabaseService = {
     return (data || []).map(p => ({
       id: p.id,
       tipo: p.tipo,
-      estado: p.estado as EstadoPieza,
+      estado: mapDbEstadoToFrontend(p.estado),
       pesoCongelado: Number(p.peso_congelado),
       pesoDescongelado: Number(p.peso_descongelado),
       pesoProducido: Number(p.peso_producido),
@@ -81,7 +138,7 @@ export const supabaseService = {
       .insert({
         id: pieza.id,
         tipo: pieza.tipo,
-        estado: pieza.estado,
+        estado: mapFrontendEstadoToDb(pieza.estado),
         peso_congelado: pieza.pesoCongelado,
         peso_descongelado: pieza.pesoDescongelado,
         peso_producido: pieza.pesoProducido,
@@ -98,24 +155,29 @@ export const supabaseService = {
   },
 
   async updatePieza(pieza: Partial<Pieza> & { id: string }) {
+    const updateData: any = {
+      peso_congelado: pieza.pesoCongelado,
+      peso_descongelado: pieza.pesoDescongelado,
+      peso_producido: pieza.pesoProducido,
+      foto_merma_url: pieza.fotoMerma,
+      merma_descongelado: pieza.mermaDescongelado,
+      merma_total: pieza.mermaTotal,
+      merma: pieza.merma,
+      rendimiento: pieza.rendimiento,
+      porciones: pieza.porciones,
+      auditado: pieza.auditado,
+      comentario_auditoria: pieza.comentarioAuditoria,
+      analisis_ia: pieza.analisis_ia,
+      updated_at: new Date().toISOString()
+    };
+
+    if (pieza.estado) {
+      updateData.estado = mapFrontendEstadoToDb(pieza.estado);
+    }
+
     const { error } = await getClient()
       .from('piezas')
-      .update({
-        estado: pieza.estado,
-        peso_congelado: pieza.pesoCongelado,
-        peso_descongelado: pieza.pesoDescongelado,
-        peso_producido: pieza.pesoProducido,
-        foto_merma_url: pieza.fotoMerma,
-        merma_descongelado: pieza.mermaDescongelado,
-        merma_total: pieza.mermaTotal,
-        merma: pieza.merma,
-        rendimiento: pieza.rendimiento,
-        porciones: pieza.porciones,
-        auditado: pieza.auditado,
-        comentario_auditoria: pieza.comentarioAuditoria,
-        analisis_ia: pieza.analisis_ia,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', pieza.id);
     if (error) throw error;
   },
@@ -173,31 +235,39 @@ export const supabaseService = {
     if (error) throw error;
   },
 
-  // Registros
+  // Registros & Evidencias
   async uploadImage(base64Data: string, fileName: string): Promise<string> {
-    const client = getClient();
+    try {
+      const client = getClient();
 
-    // Convert base64 to Blob
-    const base64Response = await fetch(base64Data);
-    const blob = await base64Response.blob();
+      // Convert base64 to Blob
+      const base64Response = await fetch(base64Data);
+      const blob = await base64Response.blob();
 
-    const { data, error } = await client
-      .storage
-      .from('evidencias')
-      .upload(`${fileName}.jpg`, blob, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
+      const { data, error } = await client
+        .storage
+        .from('evidencias')
+        .upload(`${fileName}.jpg`, blob, {
+          contentType: 'image/jpeg',
+          upsert: true
+        });
 
-    if (error) throw error;
+      if (error) {
+        console.warn("Aviso al subir imagen a Supabase Storage ('evidencias'). Se usará respaldo seguro en base64:", error.message || error);
+        return base64Data;
+      }
 
-    // Get Public URL
-    const { data: { publicUrl } } = client
-      .storage
-      .from('evidencias')
-      .getPublicUrl(data.path);
+      // Get Public URL
+      const { data: { publicUrl } } = client
+        .storage
+        .from('evidencias')
+        .getPublicUrl(data.path);
 
-    return publicUrl;
+      return publicUrl;
+    } catch (err: any) {
+      console.warn("Excepción al subir imagen al Storage de Supabase, manteniendo foto como respaldo:", err?.message || err);
+      return base64Data;
+    }
   },
 
   async fetchRegistros(): Promise<RegistroPeso[]> {
@@ -211,7 +281,7 @@ export const supabaseService = {
     return (data || []).map(r => ({
       id: r.id,
       piezaId: r.pieza_id,
-      tipoEvento: r.tipo_evento as TipoEvento,
+      tipoEvento: mapDbEventoToFrontend(r.tipo_evento),
       peso: Number(r.peso),
       foto: r.foto_url,
       fotoMerma: r.foto_merma_url,
@@ -223,12 +293,12 @@ export const supabaseService = {
     }));
   },
 
-  async createRegistro(reg: RegistroPeso) {
-    const { error } = await getClient()
+  async createRegistro(reg: RegistroPeso): Promise<RegistroPeso> {
+    const { data, error } = await getClient()
       .from('registros_peso')
       .insert({
         pieza_id: reg.piezaId,
-        tipo_evento: reg.tipoEvento,
+        tipo_evento: mapFrontendEventoToDb(reg.tipoEvento),
         peso: reg.peso,
         foto_url: reg.foto,
         foto_merma_url: reg.fotoMerma,
@@ -237,7 +307,51 @@ export const supabaseService = {
         ia_detected_weight: reg.iaDetectedWeight,
         ia_reason: reg.iaReason,
         fecha: reg.fecha
-      });
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    if (data) {
+      return {
+        ...reg,
+        id: data.id
+      };
+    }
+    return reg;
+  },
+
+  async updateRegistro(id: string, updates: { peso?: number; fecha?: string; tipoEvento?: TipoEvento; usuario?: string }) {
+    const updateData: any = {};
+    if (updates.peso !== undefined) updateData.peso = updates.peso;
+    if (updates.fecha !== undefined) updateData.fecha = updates.fecha;
+    if (updates.tipoEvento !== undefined) updateData.tipo_evento = mapFrontendEventoToDb(updates.tipoEvento);
+    if (updates.usuario !== undefined) updateData.usuario_nombre = updates.usuario;
+
+    const { error } = await getClient()
+      .from('registros_peso')
+      .update(updateData)
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async deleteRegistro(id: string) {
+    const { error } = await getClient()
+      .from('registros_peso')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async deletePieza(id: string) {
+    await getClient()
+      .from('registros_peso')
+      .delete()
+      .eq('pieza_id', id);
+
+    const { error } = await getClient()
+      .from('piezas')
+      .delete()
+      .eq('id', id);
     if (error) throw error;
   },
 
@@ -276,23 +390,36 @@ export const supabaseService = {
   },
 
   async getTransferencias(): Promise<Transferencia[]> {
+    // Exclude foto_url from list query — it may contain large base64 strings
+    // that cause statement timeouts when fetching many rows at once
     const { data, error } = await getClient()
       .from('transferencias')
-      .select('*')
-      .order('fecha', { ascending: false });
+      .select('id, sede_origen, sede_destino, productos, usuario, fecha, status')
+      .order('fecha', { ascending: false })
+      .limit(200);
 
     if (error) throw error;
 
-    return data.map(t => ({
+    return (data || []).map(t => ({
       id: t.id,
       sedeOrigen: t.sede_origen,
       sedeDestino: t.sede_destino,
       productos: typeof t.productos === 'string' ? JSON.parse(t.productos) : t.productos,
-      fotoUrl: t.foto_url,
       usuario: t.usuario,
       fecha: t.fecha,
-      status: !!t.status
+      status: !!t.status,
     }));
+  },
+
+  async getTransferenciaFoto(id: string): Promise<string | null> {
+    const { data, error } = await getClient()
+      .from('transferencias')
+      .select('foto_url')
+      .eq('id', id)
+      .single();
+
+    if (error) return null;
+    return data?.foto_url || null;
   },
 
   async updateTransferenciaStatus(id: string, status: boolean) {
