@@ -282,13 +282,13 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   };
 
   const filteredTransferencias = transferencias.filter(t => {
+    const transferDate = String(t.fecha).slice(0, 10);
     const matchesSede = filterSede ? (t.sedeOrigen === filterSede || t.sedeDestino === filterSede) : true;
     const matchesSearch = filterSearch ? t.productos.some(p => p.nombre.toLowerCase().includes(filterSearch.toLowerCase())) : true;
-    const matchesDate = (filterStartDate && filterEndDate)
-      ? (new Date(t.fecha) >= new Date(filterStartDate) && new Date(t.fecha) <= new Date(filterEndDate))
-      : true;
+    const matchesStartDate = !filterStartDate || transferDate >= filterStartDate;
+    const matchesEndDate = !filterEndDate || transferDate <= filterEndDate;
     const matchesStatus = filterStatus === "" ? true : (filterStatus === "true" ? t.status : !t.status);
-    return matchesSede && matchesSearch && matchesDate && matchesStatus;
+    return matchesSede && matchesSearch && matchesStartDate && matchesEndDate && matchesStatus;
   });
 
   const totalPages = Math.ceil(filteredTransferencias.length / ITEMS_PER_PAGE);
