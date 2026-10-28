@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia, Receta, MateriaPrima } from '../types';
+import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia, Receta, MateriaPrima, Almacen } from '../types';
 
 const getClient = () => {
   const client = getSupabase();
@@ -208,6 +208,8 @@ export const supabaseService = {
       unidad: p.unidad,
       fecha: p.fecha,
       encargado: p.encargado,
+      almacenDescuento: p.almacen_descuento || 'ALMACEN_PRINCIPAL',
+      almacenIncremento: p.almacen_incremento || 'ALMACEN_PRINCIPAL',
       status: !!p.status
     }));
   },
@@ -222,6 +224,8 @@ export const supabaseService = {
         unidad: produccion.unidad,
         fecha: produccion.fecha,
         encargado: produccion.encargado,
+        almacen_descuento: produccion.almacenDescuento,
+        almacen_incremento: produccion.almacenIncremento,
         status: produccion.status || false
       });
     if (error) throw error;
@@ -460,5 +464,39 @@ export const supabaseService = {
     
     if (error) throw error;
     return data || [];
+  },
+
+  // Almacenes
+  async fetchAlmacenes(): Promise<Almacen[]> {
+    const { data, error } = await getClient()
+      .from('almacenes')
+      .select('*')
+      .order('nombre');
+
+    if (error) throw error;
+    return (data || []).map(a => ({ id: a.id, nombre: a.nombre }));
+  },
+
+  async createAlmacen(nombre: string) {
+    const { error } = await getClient()
+      .from('almacenes')
+      .insert({ nombre });
+    if (error) throw error;
+  },
+
+  async updateAlmacen(id: string, nombre: string) {
+    const { error } = await getClient()
+      .from('almacenes')
+      .update({ nombre })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async deleteAlmacen(id: string) {
+    const { error } = await getClient()
+      .from('almacenes')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
   }
 };

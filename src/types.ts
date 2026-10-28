@@ -99,7 +99,14 @@ export interface Produccion {
   unidad: 'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes';
   fecha: string;
   encargado: string;
+  almacenDescuento: string;
+  almacenIncremento: string;
   status: boolean;
+}
+
+export interface Almacen {
+  id: string;
+  nombre: string;
 }
 
 export interface ProductoTransferencia {
@@ -110,8 +117,8 @@ export interface ProductoTransferencia {
 
 export interface Transferencia {
   id: string;
-  sedeOrigen: Sede;
-  sedeDestino: Sede;
+  sedeOrigen: string;
+  sedeDestino: string;
   productos: ProductoTransferencia[];
   fotoUrl?: string;
   usuario: string;

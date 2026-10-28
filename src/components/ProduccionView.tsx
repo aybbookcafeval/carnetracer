@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search, CheckCircle2, Download } from "lucide-react";
-import { Produccion, Usuario, Receta } from "../types";
+import { Produccion, Usuario, Receta, Almacen } from "../types";
 import { cn } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
@@ -19,6 +19,8 @@ interface PendingItem {
   cantidad: number;
   unidad: 'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes';
   encargado: string;
+  almacenDescuento: string;
+  almacenIncremento: string;
   source: 'ai' | 'manual'; // Para saber de dónde vino
 }
 
@@ -27,6 +29,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [produccion, setProduccion] = useState<Produccion[]>([]);
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [recetasError, setRecetasError] = useState<string | null>(null);
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
 
   // Lista unificada de items pendientes de guardar (IA + Manuales)
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
@@ -36,6 +39,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const [cantidad, setCantidad] = useState("");
   const [encargadoManual, setEncargadoManual] = useState("");
   const [unidad, setUnidad] = useState<'kg' | 'g' | 'unidades' | 'lts' | 'potes' | 'paquetes'>('unidades');
+  const [almacenDescuento, setAlmacenDescuento] = useState("");
+  const [almacenIncremento, setAlmacenIncremento] = useState("");
 
   // Control de UI
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,6 +59,20 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   // Cargar historial y recetas al inicio
   useEffect(() => {
     supabaseService.fetchProduccion().then(setProduccion);
+
+    const loadAlmacenes = async () => {
+      try {
+        const data = await supabaseService.fetchAlmacenes();
+        setAlmacenes(data);
+        if (data.length > 0) {
+          setAlmacenDescuento(prev => prev || data[0].nombre);
+          setAlmacenIncremento(prev => prev || data[1]?.nombre || data[0].nombre);
+        }
+      } catch (error) {
+        console.error("Error loading almacenes:", error);
+      }
+    };
+    loadAlmacenes();
 
     // Cargar y sembrar recetas si es necesario
     const loadRecetas = async () => {
@@ -93,12 +112,11 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate, filterStatus]);
 
   const handleExportCsv = () => {
-    const almacen = "ALMACEN_PRINCIPAL";
     const rows = filteredProduccion.map(p => [
       p.nombrePreparado,
       p.cantidad,
-      almacen,
-      almacen,
+      p.almacenDescuento,
+      p.almacenIncremento,
     ]);
     downloadCsv(
       "producion.csv",
@@ -120,6 +138,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
           cantidad: item.cantidad,
           unidad: item.unidad as any,
           encargado: "", // Dejar vacío para que tome el default al guardar
+          almacenDescuento,
+          almacenIncremento,
           source: 'ai'
         }));
         // Agregamos los items detectados a la lista pendiente existente
@@ -139,6 +159,10 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombrePreparado || !cantidad) return;
+    if (!almacenDescuento || !almacenIncremento) {
+      alert("Debe seleccionar el almacén de descuento y el de incremento.");
+      return;
+    }
 
     const newItem: PendingItem = {
       id: editingId || `manual-${Date.now()}`,
@@ -146,6 +170,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       cantidad: parseFloat(cantidad),
       unidad,
       encargado: encargadoManual,
+      almacenDescuento,
+      almacenIncremento,
       source: 'manual'
     };
 
@@ -172,6 +198,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     setCantidad(item.cantidad.toString());
     setUnidad(item.unidad);
     setEncargadoManual(item.encargado);
+    setAlmacenDescuento(item.almacenDescuento || almacenes[0]?.nombre || "");
+    setAlmacenIncremento(item.almacenIncremento || almacenes[1]?.nombre || almacenes[0]?.nombre || "");
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -198,6 +226,14 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
   // --- GUARDAR TODO EN BD ---
   const handleSaveAllToDatabase = async () => {
     if (pendingItems.length === 0) return;
+    if (almacenes.length === 0) {
+      alert("No hay almacenes configurados. Créalos en Ajustes antes de guardar.");
+      return;
+    }
+    if (pendingItems.some(item => !item.almacenDescuento || !item.almacenIncremento)) {
+      alert("Todos los items deben tener almacén de descuento e incremento.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -208,6 +244,8 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
         unidad: item.unidad,
         fecha: new Date().toISOString(),
         encargado: item.encargado || user?.nombre || "Sistema",
+        almacenDescuento: item.almacenDescuento,
+        almacenIncremento: item.almacenIncremento,
         status: false
       }));
 
@@ -221,9 +259,13 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       setEditingId(null);
 
       alert(`✅ ${itemsToSave.length} registros guardados exitosamente.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving batch:", error);
-      alert("Hubo un error al guardar los registros.");
+      if (error?.code === "PGRST204" || error?.code === "42703") {
+        alert("Faltan las columnas de almacenes en la tabla 'produccion'. Ejecuta la migración SQL: agregar almacen_descuento y almacen_incremento.");
+      } else {
+        alert(`Hubo un error al guardar los registros: ${error?.message || "Error desconocido"}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -345,6 +387,42 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                 </button>
               )}
             </div>
+
+            <div className="md:col-span-6">
+              <select
+                value={almacenDescuento}
+                onChange={e => setAlmacenDescuento(e.target.value)}
+                required
+                disabled={almacenes.length === 0}
+                className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none disabled:opacity-60"
+              >
+                <option value="">Almacén descuento...</option>
+                {almacenes.map(a => (
+                  <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-6">
+              <select
+                value={almacenIncremento}
+                onChange={e => setAlmacenIncremento(e.target.value)}
+                required
+                disabled={almacenes.length === 0}
+                className="w-full p-3 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand/50 outline-none disabled:opacity-60"
+              >
+                <option value="">Almacén incremento...</option>
+                {almacenes.map(a => (
+                  <option key={a.id} value={a.nombre}>{a.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            {almacenes.length === 0 && (
+              <div className="md:col-span-12 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                No hay almacenes configurados. Créalos en Ajustes para poder guardar.
+              </div>
+            )}
           </form>
 
           {/* LISTA UNIFICADA (Pendientes de Guardar) */}
@@ -377,6 +455,11 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
                           {item.cantidad} {item.unidad}
                           {item.encargado && <span className="ml-2 italic text-slate-400">· x {item.encargado}</span>}
                         </div>
+                        {(item.almacenDescuento || item.almacenIncremento) && (
+                          <div className="text-xs text-slate-400 mt-0.5">
+                            {item.almacenDescuento || "—"} → {item.almacenIncremento || "—"}
+                          </div>
+                        )}
                       </div>
                     </div>
 

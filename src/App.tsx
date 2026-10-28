@@ -48,7 +48,8 @@ import {
   EVENT_FOR_STATE,
   GLOBAL_THRESHOLDS,
   ConfigCorte,
-  Porcion
+  Porcion,
+  Almacen
 } from "./types";
 import { cn } from "./lib/utils";
 import { CameraCapture } from "./components/CameraCapture";
@@ -2608,6 +2609,66 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<ConfigCorte | null>(null);
 
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
+  const [newAlmacen, setNewAlmacen] = useState("");
+  const [isSavingAlmacen, setIsSavingAlmacen] = useState(false);
+  const [editingAlmacenId, setEditingAlmacenId] = useState<string | null>(null);
+  const [editAlmacenNombre, setEditAlmacenNombre] = useState("");
+
+  const loadAlmacenes = async () => {
+    try {
+      setAlmacenes(await supabaseService.fetchAlmacenes());
+    } catch (error) {
+      console.error("Error loading almacenes:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadAlmacenes();
+  }, []);
+
+  const handleAddAlmacen = async () => {
+    if (!newAlmacen.trim()) return;
+    setIsSavingAlmacen(true);
+    try {
+      await supabaseService.createAlmacen(newAlmacen.trim());
+      await loadAlmacenes();
+      setNewAlmacen("");
+    } catch (error) {
+      console.error("Error creating almacen:", error);
+      alert("No se pudo crear el almacén.");
+    } finally {
+      setIsSavingAlmacen(false);
+    }
+  };
+
+  const handleUpdateAlmacen = async () => {
+    if (!editingAlmacenId || !editAlmacenNombre.trim()) return;
+    setIsSavingAlmacen(true);
+    try {
+      await supabaseService.updateAlmacen(editingAlmacenId, editAlmacenNombre.trim());
+      await loadAlmacenes();
+      setEditingAlmacenId(null);
+      setEditAlmacenNombre("");
+    } catch (error) {
+      console.error("Error updating almacen:", error);
+      alert("No se pudo actualizar el almacén.");
+    } finally {
+      setIsSavingAlmacen(false);
+    }
+  };
+
+  const handleDeleteAlmacen = async (id: string) => {
+    if (!window.confirm("¿Eliminar este almacén?")) return;
+    try {
+      await supabaseService.deleteAlmacen(id);
+      setAlmacenes(prev => prev.filter(a => a.id !== id));
+    } catch (error) {
+      console.error("Error deleting almacen:", error);
+      alert("No se pudo eliminar el almacén.");
+    }
+  };
+
   const handleAdd = async () => {
     if (!newCorte.nombre) return;
     setIsSaving(true);
@@ -2807,6 +2868,89 @@ function SettingsView({ configCortes, setConfigCortes, authSession }: { configCo
             );
           })}
         </div>
+      </section>
+
+      <section className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Settings className="w-5 h-5 text-slate-400" /> Almacenes
+        </h2>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            value={newAlmacen}
+            onChange={(e) => setNewAlmacen(e.target.value)}
+            placeholder="Nombre del almacén"
+            className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-brand"
+          />
+          <button
+            onClick={handleAddAlmacen}
+            disabled={isSavingAlmacen || !newAlmacen.trim()}
+            className="px-6 py-3 bg-black text-white font-bold rounded-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
+          >
+            Añadir Almacén
+          </button>
+        </div>
+
+        {almacenes.length === 0 ? (
+          <p className="text-sm text-slate-400 italic">No hay almacenes registrados.</p>
+        ) : (
+          <div className="space-y-2">
+            {almacenes.map(a => {
+              const isEditingAlmacen = editingAlmacenId === a.id;
+              return (
+                <div key={a.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <input
+                    type="text"
+                    value={isEditingAlmacen ? editAlmacenNombre : a.nombre}
+                    disabled={!isEditingAlmacen}
+                    onChange={(e) => setEditAlmacenNombre(e.target.value)}
+                    className={cn(
+                      "flex-1 p-2 text-sm font-medium rounded-lg outline-none transition-all",
+                      isEditingAlmacen
+                        ? "bg-white border border-brand/20 ring-2 ring-brand/10"
+                        : "bg-transparent border border-transparent"
+                    )}
+                  />
+
+                  {isEditingAlmacen ? (
+                    <>
+                      <button
+                        onClick={handleUpdateAlmacen}
+                        disabled={isSavingAlmacen || !editAlmacenNombre.trim()}
+                        className="px-3 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Save className="w-3 h-3" /> Aceptar
+                      </button>
+                      <button
+                        onClick={() => { setEditingAlmacenId(null); setEditAlmacenNombre(""); }}
+                        className="px-3 py-2 bg-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-300 transition-all"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => { setEditingAlmacenId(a.id); setEditAlmacenNombre(a.nombre); }}
+                        className="px-3 py-2 bg-black text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-all flex items-center gap-1"
+                      >
+                        <Settings className="w-3 h-3" /> Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAlmacen(a.id)}
+                        className="p-2 text-slate-400 hover:text-brand hover:bg-brand/10 rounded-lg transition-all"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

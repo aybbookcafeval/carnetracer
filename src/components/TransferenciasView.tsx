@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2, Download } from "lucide-react";
-import { Sede, Transferencia, ProductoTransferencia, Usuario, MateriaPrima } from "../types";
+import { Transferencia, ProductoTransferencia, Usuario, MateriaPrima, Almacen } from "../types";
 import { cn, similarity } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
@@ -9,32 +9,14 @@ import { downloadCsv, INVENTORY_CSV_HEADERS } from "../lib/csv";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-const SEDE_STYLE: Record<Sede, { selectClass: string; optionClass: string }> = {
-  [Sede.ALMACEN_PRINCIPAL]: {
-    selectClass: "bg-slate-100 text-slate-700 border-slate-200",
-    optionClass: "bg-white text-slate-800"
-  },
-  [Sede.COCINA]: {
-    selectClass: "bg-emerald-50 text-emerald-800 border-emerald-200 focus:ring-emerald-200",
-    optionClass: "bg-emerald-50 text-emerald-800"
-  },
-  [Sede.PASTELERIA]: {
-    selectClass: "bg-amber-50 text-amber-800 border-amber-200 focus:ring-amber-200",
-    optionClass: "bg-amber-50 text-amber-800"
-  },
-  [Sede.BARRA]: {
-    selectClass: "bg-pink-50 text-pink-800 border-pink-200 focus:ring-pink-200",
-    optionClass: "bg-pink-50 text-pink-800"
-  },
-  [Sede.PISO_1]: {
-    selectClass: "bg-blue-50 text-blue-800 border-blue-200 focus:ring-blue-200",
-    optionClass: "bg-blue-50 text-blue-800"
-  },
-  [Sede.PANADERIA]: {
-    selectClass: "bg-mauve-200 text-mauve-700 border-mauve-200 focus:ring-mauve-700",
-    optionClass: "bg-mauve-200 text-mauve-700"
-  },
-};
+const ALMACEN_PALETTE = [
+  "bg-slate-100 text-slate-700 border-slate-200",
+  "bg-emerald-50 text-emerald-800 border-emerald-200 focus:ring-emerald-200",
+  "bg-amber-50 text-amber-800 border-amber-200 focus:ring-amber-200",
+  "bg-pink-50 text-pink-800 border-pink-200 focus:ring-pink-200",
+  "bg-blue-50 text-blue-800 border-blue-200 focus:ring-blue-200",
+  "bg-violet-50 text-violet-700 border-violet-200 focus:ring-violet-200",
+];
 
 export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [transferencias, setTransferencias] = useState<Transferencia[]>([]);
@@ -43,19 +25,20 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [foto, setFoto] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
+  const [almacenes, setAlmacenes] = useState<Almacen[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(-1);
 
   // Form state
-  const [sedeOrigen, setSedeOrigen] = useState<Sede>(Sede.ALMACEN_PRINCIPAL);
-  const [sedeDestino, setSedeDestino] = useState<Sede>(Sede.COCINA);
+  const [sedeOrigen, setSedeOrigen] = useState("");
+  const [sedeDestino, setSedeDestino] = useState("");
   const [productos, setProductos] = useState<ProductoTransferencia[]>([]);
   const [usuarioManual, setUsuarioManual] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Filter state
-  const [filterSede, setFilterSede] = useState<Sede | "">("");
+  const [filterSede, setFilterSede] = useState<string>("");
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
@@ -66,13 +49,19 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
+  const almacenNombres = almacenes.map(a => a.nombre);
+
+  const getAlmacenSelectClass = (nombre: string) => {
+    const idx = almacenNombres.indexOf(nombre);
+    return ALMACEN_PALETTE[idx >= 0 ? idx % ALMACEN_PALETTE.length : 0];
+  };
+
   useEffect(() => {
     loadTransferencias();
     loadMateriasPrimas();
+    loadAlmacenes();
 
     const handleOpenNueva = () => {
-      setSedeOrigen(Sede.ALMACEN_PRINCIPAL);
-      setSedeDestino(Sede.COCINA);
       setIsCapturing(true);
     };
     document.addEventListener('open-nueva-transferencia', handleOpenNueva);
@@ -96,6 +85,17 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setMateriasPrimas(data);
     } catch (error) {
       console.error("Error loading materias primas:", error);
+    }
+  };
+
+  const loadAlmacenes = async () => {
+    try {
+      const data = await supabaseService.fetchAlmacenes();
+      setAlmacenes(data);
+      setSedeOrigen(prev => prev || data[0]?.nombre || "");
+      setSedeDestino(prev => prev || data[1]?.nombre || data[0]?.nombre || "");
+    } catch (error) {
+      console.error("Error loading almacenes:", error);
     }
   };
 
@@ -180,8 +180,14 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       return;
     }
     const errors: string[] = [];
+    if (almacenes.length < 2) {
+      errors.push("Debe configurar al menos 2 almacenes en Ajustes.");
+    }
+    if (!sedeOrigen || !sedeDestino) {
+      errors.push("Debe seleccionar el almacén de origen y destino.");
+    }
     if (sedeOrigen === sedeDestino) {
-      errors.push("La sede de origen y destino no pueden ser la misma.");
+      errors.push("El almacén de origen y destino no pueden ser el mismo.");
     }
     if (!usuarioManual.trim()) {
       errors.push("Debe ingresar obligatoriamente el nombre del usuario que realiza la transferencia.");
@@ -245,8 +251,8 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       setFoto(null);
       setProductos([]);
       setUsuarioManual("");
-      setSedeOrigen(Sede.ALMACEN_PRINCIPAL);
-      setSedeDestino(Sede.COCINA);
+      setSedeOrigen(almacenes[0]?.nombre || "");
+      setSedeDestino(almacenes[1]?.nombre || almacenes[0]?.nombre || "");
       setIsCapturing(false);
       alert("Transferencia guardada exitosamente.");
     } catch (error: any) {
@@ -335,10 +341,10 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   <select
                     value={sedeOrigen}
                     onChange={(e) => {
-                      const newOrigen = e.target.value as Sede;
+                      const newOrigen = e.target.value;
                       setSedeOrigen(newOrigen);
                       if (newOrigen === sedeDestino) {
-                        const available = Object.values(Sede).filter(s => s !== newOrigen);
+                        const available = almacenNombres.filter(s => s !== newOrigen);
                         if (available.length > 0) {
                           setSedeDestino(available[0]);
                         }
@@ -346,15 +352,12 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     }}
                     className={cn(
                       "w-full p-3 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2",
-                      SEDE_STYLE[sedeOrigen]?.selectClass || "bg-slate-50 border-slate-200"
+                      getAlmacenSelectClass(sedeOrigen)
                     )}
                   >
-                    {Object.values(Sede).map(s => (
-                      <option
-                        key={s}
-                        value={s}
-                        className={SEDE_STYLE[s]?.optionClass}
-                      >
+                    {almacenes.length === 0 && <option value="">Sin almacenes</option>}
+                    {almacenNombres.map(s => (
+                      <option key={s} value={s}>
                         {s}
                       </option>
                     ))}
@@ -364,20 +367,17 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destino</label>
                   <select
                     value={sedeDestino}
-                    onChange={(e) => setSedeDestino(e.target.value as Sede)}
+                    onChange={(e) => setSedeDestino(e.target.value)}
                     className={cn(
                       "w-full p-3 border rounded-xl text-sm font-medium transition-colors outline-none focus:ring-2",
-                      SEDE_STYLE[sedeDestino]?.selectClass || "bg-slate-50 border-slate-200"
+                      getAlmacenSelectClass(sedeDestino)
                     )}
                   >
-                    {Object.values(Sede)
+                    {almacenes.length === 0 && <option value="">Sin almacenes</option>}
+                    {almacenNombres
                       .filter(s => s !== sedeOrigen)
                       .map(s => (
-                        <option
-                          key={s}
-                          value={s}
-                          className={SEDE_STYLE[s]?.optionClass}
-                        >
+                        <option key={s} value={s}>
                           {s}
                         </option>
                       ))
@@ -385,6 +385,12 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                   </select>
                 </div>
               </div>
+
+              {almacenes.length < 2 && (
+                <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Debes configurar al menos 2 almacenes en Ajustes para registrar transferencias.
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario que realiza <span className="text-brand">*</span></label>
@@ -561,7 +567,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               <p className="text-2xl font-black text-brand">{stats.itemsTransferidos}</p>
             </div>
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-              <p className="text-xs font-bold text-slate-400 uppercase">Sedes Activas</p>
+              <p className="text-xs font-bold text-slate-400 uppercase">Almacenes Activos</p>
               <p className="text-2xl font-black text-slate-900">{stats.sedesActivas}</p>
             </div>
           </div>
@@ -590,11 +596,11 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               />
               <select
                 value={filterSede}
-                onChange={(e) => { setFilterSede(e.target.value as Sede | ""); setCurrentPage(1); }}
+                onChange={(e) => { setFilterSede(e.target.value); setCurrentPage(1); }}
                 className="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 font-medium outline-none"
               >
-                <option value="">Todas las Sedes</option>
-                {Object.values(Sede).map(s => <option key={s} value={s}>{s}</option>)}
+                <option value="">Todos los Almacenes</option>
+                {almacenNombres.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <input
                 type="date"
