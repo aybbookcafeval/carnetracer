@@ -145,3 +145,9 @@ export interface Receta {
   id: string;
   nombre: string;
 }
+
+export interface MateriaPrima {
+  id: string;
+  nombre: string;
+  unidad_base: string;
+}

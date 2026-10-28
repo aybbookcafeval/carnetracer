@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, ChefHat, Camera as CameraIcon, Check, Edit2, Save, X, Filter, Calendar, Search, CheckCircle2, Download } from "lucide-react";
 import { Produccion, Usuario, Receta } from "../types";
 import { cn } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
 import { CameraCapture } from "./CameraCapture";
+import { downloadCsv, INVENTORY_CSV_HEADERS } from "../lib/csv";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -90,6 +91,21 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
       return matchesName && matchesEncargado && matchesStartDate && matchesEndDate && matchesStatus;
     });
   }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate, filterStatus]);
+
+  const handleExportCsv = () => {
+    const almacen = "ALMACEN_PRINCIPAL";
+    const rows = filteredProduccion.map(p => [
+      p.nombrePreparado,
+      p.cantidad,
+      almacen,
+      almacen,
+    ]);
+    downloadCsv(
+      "producion.csv",
+      INVENTORY_CSV_HEADERS,
+      rows
+    );
+  };
 
   // --- LÓGICA DE IA ---
   const handleCapture = async (imageSrc: string) => {
@@ -401,14 +417,24 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
               Historial de Producción
             </h2>
 
-            {(filterName || filterEncargado || filterStartDate || filterEndDate || filterStatus) && (
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => { setFilterName(""); setFilterEncargado(""); setFilterStartDate(""); setFilterEndDate(""); setFilterStatus(""); }}
-                className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                onClick={handleExportCsv}
+                disabled={filteredProduccion.length === 0}
+                className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
               >
-                <X className="w-3 h-3" /> Limpiar Filtros
+                <Download className="w-3 h-3" /> Exportar CSV
               </button>
-            )}
+
+              {(filterName || filterEncargado || filterStartDate || filterEndDate || filterStatus) && (
+                <button
+                  onClick={() => { setFilterName(""); setFilterEncargado(""); setFilterStartDate(""); setFilterEndDate(""); setFilterStatus(""); }}
+                  className="text-xs font-bold text-brand hover:underline flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" /> Limpiar Filtros
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

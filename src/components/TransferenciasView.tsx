@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2 } from "lucide-react";
-import { Sede, Transferencia, ProductoTransferencia, Usuario } from "../types";
-import { cn } from "../lib/utils";
+import { Camera as CameraIcon, Save, Share2, Plus, Trash2, ArrowRightLeft, FileText, Filter, ArrowRight, ChevronLeft, ChevronRight, TrendingUp, CheckCircle2, Download } from "lucide-react";
+import { Sede, Transferencia, ProductoTransferencia, Usuario, MateriaPrima } from "../types";
+import { cn, similarity } from "../lib/utils";
 import { supabaseService } from "../services/supabaseService";
 import { extractProductsFromImage } from "../services/openrouterService";
 import { CameraCapture } from "./CameraCapture";
+import { downloadCsv, INVENTORY_CSV_HEADERS } from "../lib/csv";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -41,6 +42,9 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [foto, setFoto] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
 
   // Form state
   const [sedeOrigen, setSedeOrigen] = useState<Sede>(Sede.ALMACEN_PRINCIPAL);
@@ -64,6 +68,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
 
   useEffect(() => {
     loadTransferencias();
+    loadMateriasPrimas();
 
     const handleOpenNueva = () => {
       setSedeOrigen(Sede.ALMACEN_PRINCIPAL);
@@ -85,13 +90,52 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     }
   };
 
+  const loadMateriasPrimas = async () => {
+    try {
+      const data = await supabaseService.fetchMateriasPrimas();
+      setMateriasPrimas(data);
+    } catch (error) {
+      console.error("Error loading materias primas:", error);
+    }
+  };
+
+  const findBestMateriaPrima = (nombre: string, list: MateriaPrima[]): MateriaPrima | null => {
+    let best: MateriaPrima | null = null;
+    let bestScore = 0;
+    for (const materia of list) {
+      const score = similarity(nombre, materia.nombre);
+      if (score > bestScore) {
+        bestScore = score;
+        best = materia;
+      }
+    }
+    return bestScore >= 0.65 ? best : null;
+  };
+
   const handleCapture = async (imageSrc: string) => {
     setFoto(imageSrc);
     setIsExtracting(true);
     try {
       const extracted = await extractProductsFromImage(imageSrc);
       if (extracted && extracted.length > 0) {
-        setProductos(extracted);
+        let lista = materiasPrimas;
+        if (lista.length === 0) {
+          try {
+            lista = await supabaseService.fetchMateriasPrimas();
+            setMateriasPrimas(lista);
+          } catch (error) {
+            console.error("Error loading materias primas:", error);
+          }
+        }
+
+        const matched = extracted.map(item => {
+          const best = findBestMateriaPrima(item.nombre, lista);
+          return best
+            ? { ...item, nombre: best.nombre, unidad: best.unidad_base }
+            : item;
+        });
+
+        setProductos(matched);
       } else {
         alert("La imagen quedó adjunta. La IA no pudo detectar productos de forma automática o el formato no fue claro. Puede añadirlos manualmente con el botón '+ Agregar Producto'.");
       }
@@ -108,13 +152,26 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   };
 
   const handleUpdateProduct = (index: number, field: keyof ProductoTransferencia, value: string | number) => {
-    const newProductos = [...productos];
-    newProductos[index] = { ...newProductos[index], [field]: value };
-    setProductos(newProductos);
+    setProductos(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
   const handleRemoveProduct = (index: number) => {
-    setProductos(productos.filter((_, i) => i !== index));
+    setProductos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleProductNameChange = (index: number, value: string) => {
+    handleUpdateProduct(index, 'nombre', value);
+    setSuggestionIndex(index);
+    setShowSuggestions(true);
+  };
+
+  const selectSuggestion = (index: number, materia: MateriaPrima) => {
+    setProductos(prev => prev.map((p, i) => i === index
+      ? { ...p, nombre: materia.nombre, unidad: materia.unidad_base }
+      : p
+    ));
+    setShowSuggestions(false);
+    setSuggestionIndex(-1);
   };
 
   const handleSave = async () => {
@@ -233,6 +290,17 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  const handleExportCsv = () => {
+    const rows = filteredTransferencias.flatMap(t =>
+      t.productos.map(p => [p.nombre, p.cantidad, t.sedeOrigen, t.sedeDestino])
+    );
+    downloadCsv(
+      "transferencia.csv",
+      INVENTORY_CSV_HEADERS,
+      rows
+    );
+  };
 
   // Statistics
   const stats = {
@@ -384,19 +452,51 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                     const isUnitInvalid = !p.unidad.trim();
 
                     return (
-                      <div key={i} className="flex gap-2 items-start bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        <div className="flex-1 space-y-2">
-                          <input
-                            type="text"
-                            value={p.nombre}
-                            onChange={(e) => handleUpdateProduct(i, 'nombre', e.target.value)}
-                            placeholder="Nombre del producto"
-                            className={cn(
-                              "w-full p-2 text-sm border rounded-md bg-white transition-colors",
-                              isNameInvalid ? "border-brand border-2" : "border-slate-200"
-                            )}
-                          />
-                          <div className="flex gap-2">
+                       <div key={i} className="flex gap-2 items-start bg-slate-50 p-2 rounded-lg border border-slate-100 relative">
+                         <div className="flex-1 space-y-2">
+                           <div className="relative">
+                             <input
+                               type="text"
+                               value={p.nombre}
+                               onChange={(e) => handleProductNameChange(i, e.target.value)}
+                               onFocus={() => { setShowSuggestions(true); setSuggestionIndex(i); }}
+                               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                               placeholder="Nombre del producto"
+                               className={cn(
+                                 "w-full p-2 text-sm border rounded-md bg-white transition-colors",
+                                 isNameInvalid ? "border-brand border-2" : "border-slate-200"
+                               )}
+                             />
+                             {showSuggestions && suggestionIndex === i && (
+                               <div className="mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                 {materiasPrimas.length === 0 ? (
+                                   <div className="px-4 py-2.5 text-sm text-slate-400 italic">
+                                     No hay materias primas registradas en la tabla.
+                                   </div>
+                                 ) : (
+                                   <>
+                                     {materiasPrimas
+                                       .filter(m => m.nombre.toLowerCase().includes(p.nombre.toLowerCase()))
+                                       .map(m => (
+                                         <div
+                                           key={m.id}
+                                           onMouseDown={() => selectSuggestion(i, m)}
+                                           className="px-4 py-2.5 text-sm text-slate-700 hover:bg-brand/10 hover:text-brand cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center"
+                                         >
+                                           <span>{m.nombre}</span>
+                                           <span className="text-xs text-slate-400">{m.unidad_base}</span>
+                                         </div>
+                                       ))
+                                     }
+                                     {materiasPrimas.filter(m => m.nombre.toLowerCase().includes(p.nombre.toLowerCase())).length === 0 && (
+                                       <div className="px-4 py-2.5 text-sm text-slate-400 italic">Sin coincidencias</div>
+                                     )}
+                                   </>
+                                 )}
+                               </div>
+                             )}
+                            </div>
+                            <div className="flex gap-2">
                             <input
                               type="number"
                               value={p.cantidad}
@@ -467,9 +567,18 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
           </div>
 
           <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
-            <div className="flex items-center gap-2 text-slate-900 font-bold">
-              <Filter className="w-4 h-4" />
-              <h2>Filtros Avanzados</h2>
+            <div className="flex items-center justify-between gap-2 text-slate-900 font-bold">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                <h2>Filtros Avanzados</h2>
+              </div>
+              <button
+                onClick={handleExportCsv}
+                disabled={filteredTransferencias.length === 0}
+                className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
+              >
+                <Download className="w-3 h-3" /> Exportar CSV
+              </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
               <input

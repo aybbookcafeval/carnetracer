@@ -1,5 +1,5 @@
 import { getSupabase } from '../lib/supabase';
-import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia, Receta } from '../types';
+import { Pieza, RegistroPeso, ConfigCorte, EstadoPieza, TipoEvento, Usuario, RolUsuario, Produccion, Transferencia, Receta, MateriaPrima } from '../types';
 
 const getClient = () => {
   const client = getSupabase();
@@ -449,5 +449,16 @@ export const supabaseService = {
       .from('recetas')
       .insert(recetas);
     if (error) throw error;
+  },
+
+  // Materias Primas
+  async fetchMateriasPrimas(): Promise<MateriaPrima[]> {
+    const { data, error } = await getClient()
+      .from('materia_prima')
+      .select('*')
+      .order('nombre');
+    
+    if (error) throw error;
+    return data || [];
   }
 };
