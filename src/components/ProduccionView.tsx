@@ -122,13 +122,30 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     });
   }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate]);
 
-  const handleExportCsv = () => {
-    const rows = pendingProduccion.map(p => [
-      p.nombrePreparado,
-      p.cantidad,
-      p.almacenDescuento,
-      p.almacenIncremento,
-    ]);
+  const handleExportCsv = async () => {
+    let pendientes = pendingProduccion;
+    try {
+      const fresh = await supabaseService.fetchProduccionPendiente();
+      pendientes = fresh.filter(p => {
+        const matchesName = p.nombrePreparado.toLowerCase().includes(filterName.toLowerCase());
+        const matchesEncargado = p.encargado.toLowerCase().includes(filterEncargado.toLowerCase());
+        const itemDate = new Date(p.fecha).toISOString().split("T")[0];
+        const matchesStartDate = !filterStartDate || itemDate >= filterStartDate;
+        const matchesEndDate = !filterEndDate || itemDate <= filterEndDate;
+        return !p.status && matchesName && matchesEncargado && matchesStartDate && matchesEndDate;
+      });
+    } catch (error) {
+      console.error("Error loading pending produccion for CSV:", error);
+    }
+
+    const rows = pendientes
+      .filter(p => !p.status)
+      .map(p => [
+        p.nombrePreparado,
+        p.cantidad,
+        p.almacenDescuento,
+        p.almacenIncremento,
+      ]);
     downloadCsv(
       "produccion_pendientes.csv",
       INVENTORY_CSV_HEADERS,

@@ -67,6 +67,28 @@ const mapFrontendEventoToDb = (evento?: TipoEvento): string => {
   }
 };
 
+const mapProduccionRow = (p: any): Produccion => ({
+  id: p.id,
+  nombrePreparado: p.nombre_preparado,
+  cantidad: Number(p.cantidad),
+  unidad: p.unidad,
+  fecha: p.fecha,
+  encargado: p.encargado,
+  almacenDescuento: p.almacen_descuento || 'ALMACEN_PRINCIPAL',
+  almacenIncremento: p.almacen_incremento || 'ALMACEN_PRINCIPAL',
+  status: !!p.status
+});
+
+const mapTransferenciaRow = (t: any): Transferencia => ({
+  id: t.id,
+  sedeOrigen: t.sede_origen,
+  sedeDestino: t.sede_destino,
+  productos: typeof t.productos === 'string' ? JSON.parse(t.productos) : t.productos,
+  usuario: t.usuario,
+  fecha: t.fecha,
+  status: !!t.status,
+});
+
 export const supabaseService = {
   // Config Cortes
   async fetchConfigCortes(): Promise<ConfigCorte[]> {
@@ -204,17 +226,19 @@ export const supabaseService = {
 
     if (error) throw error;
 
-    return (data || []).map(p => ({
-      id: p.id,
-      nombrePreparado: p.nombre_preparado,
-      cantidad: Number(p.cantidad),
-      unidad: p.unidad,
-      fecha: p.fecha,
-      encargado: p.encargado,
-      almacenDescuento: p.almacen_descuento || 'ALMACEN_PRINCIPAL',
-      almacenIncremento: p.almacen_incremento || 'ALMACEN_PRINCIPAL',
-      status: !!p.status
-    }));
+    return (data || []).map(mapProduccionRow);
+  },
+
+  async fetchProduccionPendiente(): Promise<Produccion[]> {
+    const { data, error } = await getClient()
+      .from('produccion')
+      .select('*')
+      .eq('status', false)
+      .order('fecha', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(mapProduccionRow).filter(p => !p.status);
   },
 
   async createProduccion(produccion: Produccion) {
@@ -442,15 +466,19 @@ export const supabaseService = {
 
     if (error) throw error;
 
-    return (data || []).map(t => ({
-      id: t.id,
-      sedeOrigen: t.sede_origen,
-      sedeDestino: t.sede_destino,
-      productos: typeof t.productos === 'string' ? JSON.parse(t.productos) : t.productos,
-      usuario: t.usuario,
-      fecha: t.fecha,
-      status: !!t.status,
-    }));
+    return (data || []).map(mapTransferenciaRow);
+  },
+
+  async getTransferenciasPendientes(): Promise<Transferencia[]> {
+    const { data, error } = await getClient()
+      .from('transferencias')
+      .select('id, sede_origen, sede_destino, productos, usuario, fecha, status')
+      .eq('status', false)
+      .order('fecha', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map(mapTransferenciaRow).filter(t => !t.status);
   },
 
   async getTransferenciaFoto(id: string): Promise<string | null> {

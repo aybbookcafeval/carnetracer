@@ -306,10 +306,27 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     return !t.status && matchesSede && matchesSearch && matchesStartDate && matchesEndDate;
   });
 
-  const handleExportCsv = () => {
-    const rows = pendingTransferencias.flatMap(t =>
-      t.productos.map(p => [p.nombre, p.cantidad, t.sedeOrigen, t.sedeDestino])
-    );
+  const handleExportCsv = async () => {
+    let pendientes = pendingTransferencias;
+    try {
+      const fresh = await supabaseService.getTransferenciasPendientes();
+      pendientes = fresh.filter(t => {
+        const transferDate = String(t.fecha).slice(0, 10);
+        const matchesSede = filterSede ? (t.sedeOrigen === filterSede || t.sedeDestino === filterSede) : true;
+        const matchesSearch = filterSearch ? t.productos.some(p => p.nombre.toLowerCase().includes(filterSearch.toLowerCase())) : true;
+        const matchesStartDate = !filterStartDate || transferDate >= filterStartDate;
+        const matchesEndDate = !filterEndDate || transferDate <= filterEndDate;
+        return !t.status && matchesSede && matchesSearch && matchesStartDate && matchesEndDate;
+      });
+    } catch (error) {
+      console.error("Error loading pending transferencias for CSV:", error);
+    }
+
+    const rows = pendientes
+      .filter(t => !t.status)
+      .flatMap(t =>
+        t.productos.map(p => [p.nombre, p.cantidad, t.sedeOrigen, t.sedeDestino])
+      );
     downloadCsv(
       "transferencias_pendientes.csv",
       INVENTORY_CSV_HEADERS,
