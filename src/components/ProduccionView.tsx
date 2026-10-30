@@ -111,15 +111,26 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
     });
   }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate, filterStatus]);
 
+  const pendingProduccion = React.useMemo(() => {
+    return produccion.filter(p => {
+      const matchesName = p.nombrePreparado.toLowerCase().includes(filterName.toLowerCase());
+      const matchesEncargado = p.encargado.toLowerCase().includes(filterEncargado.toLowerCase());
+      const itemDate = new Date(p.fecha).toISOString().split("T")[0];
+      const matchesStartDate = !filterStartDate || itemDate >= filterStartDate;
+      const matchesEndDate = !filterEndDate || itemDate <= filterEndDate;
+      return !p.status && matchesName && matchesEncargado && matchesStartDate && matchesEndDate;
+    });
+  }, [produccion, filterName, filterEncargado, filterStartDate, filterEndDate]);
+
   const handleExportCsv = () => {
-    const rows = filteredProduccion.map(p => [
+    const rows = pendingProduccion.map(p => [
       p.nombrePreparado,
       p.cantidad,
       p.almacenDescuento,
       p.almacenIncremento,
     ]);
     downloadCsv(
-      "producion.csv",
+      "produccion_pendientes.csv",
       INVENTORY_CSV_HEADERS,
       rows
     );
@@ -503,7 +514,7 @@ export const ProduccionView: React.FC<Props> = ({ user }) => {
             <div className="flex items-center gap-3">
               <button
                 onClick={handleExportCsv}
-                disabled={filteredProduccion.length === 0}
+                disabled={pendingProduccion.length === 0}
                 className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
               >
                 <Download className="w-3 h-3" /> Exportar CSV

@@ -297,12 +297,21 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
     currentPage * ITEMS_PER_PAGE
   );
 
+  const pendingTransferencias = transferencias.filter(t => {
+    const transferDate = String(t.fecha).slice(0, 10);
+    const matchesSede = filterSede ? (t.sedeOrigen === filterSede || t.sedeDestino === filterSede) : true;
+    const matchesSearch = filterSearch ? t.productos.some(p => p.nombre.toLowerCase().includes(filterSearch.toLowerCase())) : true;
+    const matchesStartDate = !filterStartDate || transferDate >= filterStartDate;
+    const matchesEndDate = !filterEndDate || transferDate <= filterEndDate;
+    return !t.status && matchesSede && matchesSearch && matchesStartDate && matchesEndDate;
+  });
+
   const handleExportCsv = () => {
-    const rows = filteredTransferencias.flatMap(t =>
+    const rows = pendingTransferencias.flatMap(t =>
       t.productos.map(p => [p.nombre, p.cantidad, t.sedeOrigen, t.sedeDestino])
     );
     downloadCsv(
-      "transferencia.csv",
+      "transferencias_pendientes.csv",
       INVENTORY_CSV_HEADERS,
       rows
     );
@@ -580,7 +589,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               </div>
               <button
                 onClick={handleExportCsv}
-                disabled={filteredTransferencias.length === 0}
+                disabled={pendingTransferencias.length === 0}
                 className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
               >
                 <Download className="w-3 h-3" /> Exportar CSV

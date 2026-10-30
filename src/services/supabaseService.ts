@@ -16,6 +16,8 @@ const mapDbEstadoToFrontend = (dbEstado: string): EstadoPieza => {
       return EstadoPieza.DESCONGELADA;
     case 'FINALIZADA':
       return EstadoPieza.PRODUCIDA;
+    case 'CARGADO_EN_SISTEMA':
+      return EstadoPieza.CARGADO_EN_SISTEMA;
     case 'CREADA':
     default:
       return EstadoPieza.CREADA;
@@ -29,8 +31,9 @@ const mapFrontendEstadoToDb = (estado?: EstadoPieza): string => {
     case EstadoPieza.DESCONGELADA:
       return 'PROCESANDO';
     case EstadoPieza.PRODUCIDA:
-    case EstadoPieza.CARGADO_EN_SISTEMA:
       return 'FINALIZADA';
+    case EstadoPieza.CARGADO_EN_SISTEMA:
+      return 'CARGADO_EN_SISTEMA';
     case EstadoPieza.CREADA:
     default:
       return 'CREADA';
@@ -275,9 +278,12 @@ export const supabaseService = {
   },
 
   async fetchRegistros(): Promise<RegistroPeso[]> {
+    // Do not select foto_url / foto_merma_url here: historical records may store
+    // large base64 images that make the query exceed the statement timeout.
+    // Photos are loaded lazily (per piece / per record) when needed.
     const { data, error } = await getClient()
       .from('registros_peso')
-      .select('*')
+      .select('id,pieza_id,tipo_evento,peso,usuario_nombre,validado_ia,ia_detected_weight,ia_reason,fecha')
       .order('fecha', { ascending: false });
 
     if (error) throw error;
@@ -287,14 +293,46 @@ export const supabaseService = {
       piezaId: r.pieza_id,
       tipoEvento: mapDbEventoToFrontend(r.tipo_evento),
       peso: Number(r.peso),
-      foto: r.foto_url,
-      fotoMerma: r.foto_merma_url,
+      foto: '',
+      fotoMerma: undefined,
       usuario: r.usuario_nombre,
       validadoIA: r.validado_ia,
       iaDetectedWeight: r.ia_detected_weight,
       iaReason: r.ia_reason,
       fecha: r.fecha
     }));
+  },
+
+  async fetchFotosPorPieza(piezaId: string): Promise<Record<string, { foto?: string; fotoMerma?: string }>> {
+    const { data, error } = await getClient()
+      .from('registros_peso')
+      .select('id,foto_url,foto_merma_url')
+      .eq('pieza_id', piezaId);
+
+    if (error) return {};
+
+    const fotos: Record<string, { foto?: string; fotoMerma?: string }> = {};
+    (data || []).forEach(r => {
+      fotos[r.id] = {
+        foto: r.foto_url || undefined,
+        fotoMerma: r.foto_merma_url || undefined
+      };
+    });
+    return fotos;
+  },
+
+  async fetchFotoRegistro(registroId: string): Promise<{ foto?: string; fotoMerma?: string }> {
+    const { data, error } = await getClient()
+      .from('registros_peso')
+      .select('foto_url,foto_merma_url')
+      .eq('id', registroId)
+      .single();
+
+    if (error || !data) return {};
+    return {
+      foto: data.foto_url || undefined,
+      fotoMerma: data.foto_merma_url || undefined
+    };
   },
 
   async createRegistro(reg: RegistroPeso): Promise<RegistroPeso> {

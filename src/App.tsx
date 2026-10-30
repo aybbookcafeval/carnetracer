@@ -303,14 +303,17 @@ export default function App() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [p, r, c] = await Promise.all([
+        const [p, r, c] = await Promise.allSettled([
           supabaseService.fetchPiezas(),
           supabaseService.fetchRegistros(),
           supabaseService.fetchConfigCortes()
         ]);
-        setPiezas(p);
-        setRegistros(r);
-        setConfigCortes(c);
+        if (p.status === 'fulfilled') setPiezas(p.value);
+        else console.error("Error loading piezas from Supabase:", p.reason);
+        if (r.status === 'fulfilled') setRegistros(r.value);
+        else console.error("Error loading registros from Supabase:", r.reason);
+        if (c.status === 'fulfilled') setConfigCortes(c.value);
+        else console.error("Error loading config cortes from Supabase:", c.reason);
       } catch (error) {
         console.error("Error loading data from Supabase:", error);
       } finally {
@@ -1235,7 +1238,7 @@ export default function App() {
                           {group.regs.map(r => (
                             <div key={r.id} className="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 hover:border-slate-300 transition-colors">
                               <div className="w-14 h-14 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 border border-slate-100">
-                                <img src={r.foto} alt="Peso" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                <RegistroThumb registroId={r.id} initialSrc={r.foto} alt="Peso" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start">
@@ -1645,6 +1648,32 @@ function StatCard({ title, value, icon, color }: { title: string; value: string 
   );
 }
 
+function RegistroThumb({ registroId, initialSrc, alt }: { registroId: string; initialSrc?: string; alt: string }) {
+  const [src, setSrc] = useState(initialSrc || "");
+
+  useEffect(() => {
+    let active = true;
+    if (initialSrc) {
+      setSrc(initialSrc);
+      return;
+    }
+    supabaseService.fetchFotoRegistro(registroId).then(res => {
+      if (active && res.foto) setSrc(res.foto);
+    });
+    return () => { active = false; };
+  }, [registroId, initialSrc]);
+
+  if (!src) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-slate-300">
+        <CameraIcon className="w-5 h-5" />
+      </div>
+    );
+  }
+
+  return <img src={src} alt={alt} className="w-full h-full object-cover" referrerPolicy="no-referrer" />;
+}
+
 function PieceCard({ pieza, registros = [], configCortes, isAdmin = false, onAction, onDetails, onMarkAsLoaded }: { pieza: Pieza; registros?: RegistroPeso[]; configCortes: ConfigCorte[]; isAdmin?: boolean; onAction: () => void; onDetails?: () => void; onMarkAsLoaded?: (id: string) => void }) {
   const nextEstado = NEXT_STATE[pieza.estado];
   const config = configCortes.find(c => c.nombre === pieza.tipo);
@@ -1800,6 +1829,18 @@ function PieceDetails({
   const mDescongMax = config?.mermaDescongeladoMax ?? 8;
   const mTotalMax = config?.mermaTotalMax ?? 22;
 
+  const [fotos, setFotos] = useState<Record<string, { foto?: string; fotoMerma?: string }>>({});
+  const registroIds = registros.map(r => r.id).join(',');
+
+  useEffect(() => {
+    let active = true;
+    if (registros.length === 0 || registros.every(r => r.foto)) return;
+    supabaseService.fetchFotosPorPieza(pieza.id).then(res => {
+      if (active) setFotos(res);
+    });
+    return () => { active = false; };
+  }, [pieza.id, registroIds]);
+
   return (
     <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
       {/* Admin Banner */}
@@ -1945,7 +1986,7 @@ function PieceDetails({
                   <ShareButton
                     title={`Registro ${reg.tipoEvento}`}
                     text={`Registro de Trazabilidad\nPieza: ${pieza.tipo}\nEstado: ${pieza.estado}\nEvento: ${reg.tipoEvento}\nPeso: ${reg.peso}kg\nFecha y Hora: ${format(new Date(reg.fecha), "dd/MM/yyyy HH:mm")}\nUsuario: ${reg.usuario}`}
-                    imageUrl={reg.foto}
+                    imageUrl={reg.foto || fotos[reg.id]?.foto}
                   />
                   <p className="text-[10px] text-slate-400 text-right">
                     {format(new Date(reg.fecha), "d MMM, HH:mm", { locale: es })}<br />
@@ -1953,11 +1994,11 @@ function PieceDetails({
                   </p>
                 </div>
               </div>
-              {reg.foto && (
+              {(reg.foto || fotos[reg.id]?.foto) && (
                 <div className="space-y-3">
                   <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[400px] mx-auto">
                     <img
-                      src={reg.foto}
+                      src={reg.foto || fotos[reg.id]?.foto}
                       alt={reg.tipoEvento}
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"
@@ -1973,14 +2014,14 @@ function PieceDetails({
                     )}
                   </div>
 
-                  {reg.fotoMerma && (
+                  {(reg.fotoMerma || fotos[reg.id]?.fotoMerma) && (
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-brand uppercase flex items-center gap-1">
                         <Scale className="w-3 h-3" /> Evidencia de Merma:
                       </p>
                       <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-[9/16] max-h-[300px] mx-auto border-2 border-brand/20">
                         <img
-                          src={reg.fotoMerma}
+                          src={reg.fotoMerma || fotos[reg.id]?.fotoMerma}
                           alt="Merma"
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
