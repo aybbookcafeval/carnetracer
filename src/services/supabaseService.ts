@@ -500,6 +500,23 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  async deleteTransferencia(id: string) {
+    const { error } = await getClient()
+      .from('transferencias')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async deleteTransferencias(ids: string[]) {
+    if (ids.length === 0) return;
+    const { error } = await getClient()
+      .from('transferencias')
+      .delete()
+      .in('id', ids);
+    if (error) throw error;
+  },
+
   // Recetas
   async fetchRecetas(): Promise<Receta[]> {
     const { data, error } = await getClient()

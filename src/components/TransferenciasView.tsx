@@ -47,6 +47,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
   const [detailFotoUrl, setDetailFotoUrl] = useState<string | null>(null);
   const [loadingFoto, setLoadingFoto] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const ITEMS_PER_PAGE = 10;
 
   const almacenNombres = almacenes.map(a => a.nombre);
@@ -260,6 +261,56 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       alert(`Error al guardar la transferencia: ${error?.message || "Ocurrió un error inesperado"}`);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (t: Transferencia) => {
+    if (!confirm(`¿Estás seguro de eliminar la transferencia ${t.id} de "${t.sedeOrigen}" a "${t.sedeDestino}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await supabaseService.deleteTransferencia(t.id);
+      setTransferencias(prev => prev.filter(item => item.id !== t.id));
+      setSelectedIds(prev => prev.filter(id => id !== t.id));
+      if (selectedTransfer?.id === t.id) {
+        setSelectedTransfer(null);
+        setDetailFotoUrl(null);
+      }
+    } catch (error) {
+      console.error("Error deleting transferencia:", error);
+      alert("Error al eliminar la transferencia.");
+    }
+  };
+
+  const toggleSelectId = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAllPage = () => {
+    const pageIds = paginatedTransferencias.map(t => t.id);
+    const allSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+    setSelectedIds(prev => allSelected
+      ? prev.filter(id => !pageIds.includes(id))
+      : Array.from(new Set([...prev, ...pageIds]))
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`¿Estás seguro de eliminar ${selectedIds.length} transferencia(s)? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    try {
+      await supabaseService.deleteTransferencias(selectedIds);
+      setTransferencias(prev => prev.filter(item => !selectedIds.includes(item.id)));
+      if (selectedTransfer && selectedIds.includes(selectedTransfer.id)) {
+        setSelectedTransfer(null);
+        setDetailFotoUrl(null);
+      }
+      setSelectedIds([]);
+    } catch (error) {
+      console.error("Error deleting transferencias:", error);
+      alert("Error al eliminar las transferencias.");
     }
   };
 
@@ -604,13 +655,23 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 <Filter className="w-4 h-4" />
                 <h2>Filtros Avanzados</h2>
               </div>
-              <button
-                onClick={handleExportCsv}
-                disabled={pendingTransferencias.length === 0}
-                className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
-              >
-                <Download className="w-3 h-3" /> Exportar CSV
-              </button>
+              <div className="flex items-center gap-2">
+                {user?.rol === 'ADMIN' && selectedIds.length > 0 && (
+                  <button
+                    onClick={handleBulkDelete}
+                    className="text-xs font-bold text-white bg-red-600 px-3 py-2 rounded-lg hover:bg-red-700 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" /> Eliminar ({selectedIds.length})
+                  </button>
+                )}
+                <button
+                  onClick={handleExportCsv}
+                  disabled={pendingTransferencias.length === 0}
+                  className="text-xs font-bold text-white bg-brand px-3 py-2 rounded-lg hover:bg-brand/90 disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" /> Exportar CSV
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
               <input
@@ -657,6 +718,17 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
               <table className="w-full min-w-[600px] text-left text-sm">
                 <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                   <tr>
+                    {user?.rol === 'ADMIN' && (
+                      <th className="p-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={paginatedTransferencias.length > 0 && paginatedTransferencias.every(t => selectedIds.includes(t.id))}
+                          onChange={toggleSelectAllPage}
+                          className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand/20 cursor-pointer"
+                          title="Seleccionar todos"
+                        />
+                      </th>
+                    )}
                     <th className="p-4">Fecha</th>
                     <th className="p-4">Ruta</th>
                     <th className="p-4">Productos</th>
@@ -668,13 +740,23 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                 <tbody className="divide-y divide-slate-100">
                   {paginatedTransferencias.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-slate-400">
+                      <td colSpan={user?.rol === 'ADMIN' ? 7 : 6} className="p-8 text-center text-slate-400">
                         No hay transferencias registradas.
                       </td>
                     </tr>
                   ) : (
                     paginatedTransferencias.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => { setSelectedTransfer(t); setDetailFotoUrl(null); setLoadingFoto(true); supabaseService.getTransferenciaFoto(t.id).then(url => { setDetailFotoUrl(url); setLoadingFoto(false); }).catch(() => setLoadingFoto(false)); }}>
+                      <tr key={t.id} className={cn("hover:bg-slate-50/50 transition-colors cursor-pointer", selectedIds.includes(t.id) && "bg-brand/5")} onClick={() => { setSelectedTransfer(t); setDetailFotoUrl(null); setLoadingFoto(true); supabaseService.getTransferenciaFoto(t.id).then(url => { setDetailFotoUrl(url); setLoadingFoto(false); }).catch(() => setLoadingFoto(false)); }}>
+                        {user?.rol === 'ADMIN' && (
+                          <td className="p-4 w-10" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(t.id)}
+                              onChange={() => toggleSelectId(t.id)}
+                              className="w-4 h-4 rounded border-slate-300 text-brand focus:ring-brand/20 cursor-pointer"
+                            />
+                          </td>
+                        )}
                         <td className="p-4 whitespace-nowrap">
                           <div className="font-medium text-slate-900">{format(new Date(t.fecha), "dd MMM yyyy", { locale: es })}</div>
                           <div className="text-xs text-slate-500">{format(new Date(t.fecha), "HH:mm")}</div>
@@ -729,13 +811,24 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
                           )}
                         </td>
                         <td className="p-4 text-right">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleShare(t); }}
-                            className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-lg transition-colors"
-                            title="Compartir"
-                          >
-                            <Share2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleShare(t); }}
+                              className="p-2 text-slate-400 hover:text-brand hover:bg-brand/5 rounded-lg transition-colors"
+                              title="Compartir"
+                            >
+                              <Share2 className="w-4 h-4" />
+                            </button>
+                            {user?.rol === 'ADMIN' && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDelete(t); }}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -777,7 +870,17 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
           <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-bold">Detalles de Transferencia</h2>
-              <button onClick={() => { setSelectedTransfer(null); setDetailFotoUrl(null); }} className="text-slate-400 hover:text-slate-600">Cerrar</button>
+              <div className="flex items-center gap-3">
+                {user?.rol === 'ADMIN' && (
+                  <button
+                    onClick={() => handleDelete(selectedTransfer)}
+                    className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-bold"
+                  >
+                    <Trash2 className="w-4 h-4" /> Eliminar
+                  </button>
+                )}
+                <button onClick={() => { setSelectedTransfer(null); setDetailFotoUrl(null); }} className="text-slate-400 hover:text-slate-600">Cerrar</button>
+              </div>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
