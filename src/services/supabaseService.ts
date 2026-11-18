@@ -456,13 +456,10 @@ export const supabaseService = {
   },
 
   async getTransferencias(): Promise<Transferencia[]> {
-    // Exclude foto_url from list query — it may contain large base64 strings
-    // that cause statement timeouts when fetching many rows at once
     const { data, error } = await getClient()
       .from('transferencias')
       .select('id, sede_origen, sede_destino, productos, usuario, fecha, status')
-      .order('fecha', { ascending: false })
-      .limit(200);
+      .order('fecha', { ascending: false });
 
     if (error) throw error;
 
