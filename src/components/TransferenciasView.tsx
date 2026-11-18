@@ -226,12 +226,7 @@ export function TransferenciasView({ user }: { user: Usuario | null }) {
       let fotoUrl = undefined;
       if (foto) {
         const fileName = `TRANSF-${Date.now()}`;
-        try {
-          fotoUrl = await supabaseService.uploadImage(foto, fileName);
-        } catch (uploadErr) {
-          console.warn("Aviso al subir imagen, usando respaldo directo:", uploadErr);
-          fotoUrl = foto;
-        }
+        fotoUrl = await supabaseService.uploadImage(foto, fileName);
       }
 
       const newTransferencia: Transferencia = {

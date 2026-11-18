@@ -284,8 +284,8 @@ export const supabaseService = {
         });
 
       if (error) {
-        console.warn("Aviso al subir imagen a Supabase Storage ('evidencias'). Se usará respaldo seguro en base64:", error.message || error);
-        return base64Data;
+        console.error("Error al subir imagen a Supabase Storage ('evidencias'):", error.message || error);
+        throw new Error(`Error subiendo imagen a evidencias: ${error.message || 'Error desconocido'}`);
       }
 
       // Get Public URL
@@ -296,8 +296,8 @@ export const supabaseService = {
 
       return publicUrl;
     } catch (err: any) {
-      console.warn("Excepción al subir imagen al Storage de Supabase, manteniendo foto como respaldo:", err?.message || err);
-      return base64Data;
+      console.error("Excepción al subir imagen al Storage de Supabase:", err?.message || err);
+      throw err;
     }
   },
 
